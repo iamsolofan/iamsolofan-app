@@ -939,14 +939,13 @@ export default function App() {
         </div>
       )}
 
-      {/* 💡 프로필 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
+      {/* 프로필 상세보기 패널 (중앙 팝업 모달) */}
       {selectedProfile && isPanelOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeProfile} />
           <div className="relative w-full max-w-lg bg-white rounded-[40px] sm:rounded-[56px] shadow-2xl flex flex-col p-6 sm:p-10 max-h-[90vh] overflow-y-auto animate-fade-in scrollbar-hide">
             <button onClick={closeProfile} className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full z-10 hover:bg-gray-200 transition-colors"><IconX /></button>
             
-            {/* 💡 사진을 작게 하고 이름/직업이 그 옆에 나란히 오도록 배치 (가로 정렬 Flex) */}
             <div className="flex flex-row items-center gap-6 sm:gap-8 mt-4 sm:mt-2 bg-gray-50 p-5 sm:p-6 rounded-[32px] border border-gray-100 shrink-0">
               <div className="overflow-hidden rounded-[20px] shadow-lg border-4 border-white shrink-0 relative bg-gray-200 w-28 sm:w-36 aspect-[4/5]">
                 <div className="absolute top-2 left-2 bg-black text-white font-black px-2 py-1 rounded-full text-[10px] shadow-md z-10">{season}기</div>
@@ -986,25 +985,25 @@ export default function App() {
         </div>
       )}
 
-      {/* 게시글 상세보기 패널 (기존 슬라이드 유지 혹은 필요 시 동일하게 변경 가능) */}
+      {/* 💡 게시글 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
       {selectedPost && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closePostModal} />
-          <div className="relative w-full max-w-xl bg-white h-full shadow-2xl p-8 sm:p-12 flex flex-col animate-slide-in">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-6 mt-2">
+          <div className="relative w-full max-w-2xl bg-white rounded-[40px] sm:rounded-[56px] shadow-2xl p-6 sm:p-10 flex flex-col max-h-[90vh] animate-fade-in">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-4 sm:pb-6">
               <span className="text-xs font-black text-gray-300 tracking-widest uppercase">BOARD_READING</span>
-              <div className="flex items-center gap-3 sm:gap-6">
+              <div className="flex items-center gap-2 sm:gap-4">
                 {(getMyItems('my_posts').includes(selectedPost.id) || isAdmin) && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => setWriteModal({ isOpen: true, isEdit: true, postId: selectedPost.id, author: selectedPost.author, title: selectedPost.title, content: selectedPost.content })} className="text-sm font-black px-3 py-2 bg-gray-100 rounded-xl text-gray-500 hover:text-pink-500 transition-colors">수정</button>
                     <button onClick={() => handleDeletePost(selectedPost.id)} className="text-sm font-black px-3 py-2 bg-gray-100 rounded-xl text-gray-500 hover:text-red-500 transition-colors">삭제</button>
                   </div>
                 )}
-                <button onClick={closePostModal} className="p-3 bg-gray-50 rounded-full"><IconX /></button>
+                <button onClick={closePostModal} className="p-2 sm:p-3 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"><IconX /></button>
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto pt-8 pr-2 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto pt-6 sm:pt-8 pr-2 scrollbar-hide">
               <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-8 leading-tight tracking-tighter break-keep">{selectedPost.title}</h2>
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-gray-50">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 border border-gray-200"><IconUser /></div>
@@ -1046,8 +1045,6 @@ export default function App() {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .animate-slide-in { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         select { appearance: none; -webkit-appearance: none; }
