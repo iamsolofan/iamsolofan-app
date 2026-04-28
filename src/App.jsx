@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, query, addDoc } from 'firebase/firestore';
+import CommentSection from './CommentSection.jsx';
 
 // --- Firebase 초기화 ---
 const firebaseConfig = {
@@ -901,6 +902,7 @@ export default function App() {
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
+      <CommentSection />
     </div>
   );
 }
