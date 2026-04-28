@@ -806,6 +806,7 @@ export default function App() {
               </div>
               <div className="whitespace-pre-wrap text-slate-700 leading-loose text-base min-h-[300px] break-words">{selectedPost.content}</div>
             </div>
+            <CommentSection />
             <div className="p-6 border-t border-slate-100 bg-slate-50/50">
               <button onClick={handleLikePost} className="w-full py-4 bg-rose-500 text-white font-medium text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-rose-600 transition-colors shadow-sm"><IconHeart /> 이 글 응원하기 ({selectedPost.likes})</button>
             </div>
@@ -902,7 +903,6 @@ export default function App() {
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-      <CommentSection />
-    </div>
+          </div>
   );
 }
