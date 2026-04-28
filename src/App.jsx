@@ -433,7 +433,7 @@ export default function App() {
   const closeProfile = () => { setIsPanelOpen(false); document.body.style.overflow = 'unset'; };
 
   const handleAdminLogin = () => {
-    if (adminPassword === 'admin123') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
+    if (adminPassword === 'hoonie2') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
     else showAlert('비밀번호가 틀렸습니다.');
   };
 
