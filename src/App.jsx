@@ -805,11 +805,20 @@ export default function App() {
                 </div>
               </div>
               <div className="whitespace-pre-wrap text-slate-700 leading-loose text-base min-h-[300px] break-words">{selectedPost.content}</div>
-            </div>
-            <CommentSection />
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50">
-              <button onClick={handleLikePost} className="w-full py-4 bg-rose-500 text-white font-medium text-lg rounded-2xl flex items-center justify-center gap-2 hover:bg-rose-600 transition-colors shadow-sm"><IconHeart /> 이 글 응원하기 ({selectedPost.likes})</button>
-            </div>
+            
+            {/* 작고 예쁜 하트 버튼으로 교체 */}
+<div className="flex items-center gap-4 px-8 py-4 border-t border-slate-100">
+  <button 
+    onClick={handleLikePost} 
+    className="flex items-center gap-2 text-rose-500 font-semibold hover:scale-110 transition-transform"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+    <span>{selectedPost.likes}</span>
+  </button>
+  <span className="text-slate-400 text-sm">이 글이 마음에 드시나요?</span>
+</div>
+<CommentSection />
+</div>
           </div>
         </div>
       )}
