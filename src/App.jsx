@@ -108,6 +108,23 @@ const supabaseApi = {
     } catch (e) { this._useLocal = true; this._initLocal(); return JSON.parse(localStorage.getItem('iamsolo_comments')); }
   },
 
+  // 💡 현재 저장되어 있는 기수(Season) 목록만 불러오는 함수
+  async getAvailableSeasons() {
+    try {
+      if (this._useLocal) throw new Error('Local Mode');
+      const res = await fetch(`${supabaseUrl}/rest/v1/participants?select=season`, { headers: supabaseHeaders });
+      if (!res.ok) throw new Error('API Error');
+      const data = await res.json();
+      const seasons = Array.from(new Set(data.map(d => d.season)));
+      return seasons.length > 0 ? seasons.sort((a,b)=>a-b) : [31];
+    } catch (e) {
+      this._useLocal = true; this._initLocal();
+      const localData = JSON.parse(localStorage.getItem('iamsolo_participants') || '[]');
+      const seasons = Array.from(new Set(localData.map(d => d.season)));
+      return seasons.length > 0 ? seasons.sort((a,b)=>a-b) : [31];
+    }
+  },
+
   async getParticipants(season) {
     try {
       if (this._useLocal) throw new Error('Local Mode');
@@ -281,7 +298,7 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
 export default function App() {
   const [season, setSeason] = useState(31);
   const [activeTab, setActiveTab] = useState('coupleVote');
-  const [availableSeasons, setAvailableSeasons] = useState([31, 32, 33, 34, 35]); 
+  const [availableSeasons, setAvailableSeasons] = useState([31]); // 💡 35기 등 불필요한 고정값 제거
   const [castData, setCastData] = useState([]);
   const [coupleVotes, setCoupleVotes] = useState({});
   const [villainVotes, setVillainVotes] = useState({});
@@ -306,6 +323,16 @@ export default function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [castEditModal, setCastEditModal] = useState({ isOpen: false, data: null });
+
+  // 💡 처음 실행될 때 금고(DB)에 존재하는 기수 목록만 가져와서 선택창에 세팅
+  useEffect(() => {
+    async function initSeasons() {
+      const fetchedSeasons = await supabaseApi.getAvailableSeasons();
+      if (!fetchedSeasons.includes(31)) fetchedSeasons.push(31); // 기본값 31기는 무조건 존재
+      setAvailableSeasons(fetchedSeasons.sort((a, b) => a - b));
+    }
+    initSeasons();
+  }, []);
 
   useEffect(() => {
     fetchCast();
@@ -574,8 +601,21 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 bg-pink-50 px-4 py-2 rounded-full border border-pink-100 shrink-0">
             <span className="text-sm font-black text-pink-600">기수 선택:</span>
-            <select value={season} onChange={(e) => setSeason(Number(e.target.value))} className="bg-transparent text-pink-600 text-sm font-black outline-none border-none cursor-pointer">
+            {/* 💡 운영자일 경우 새로운 기수를 수동으로 추가할 수 있는 기능 탑재 */}
+            <select value={season} onChange={(e) => {
+                if (e.target.value === 'new') {
+                    const next = Math.max(...availableSeasons, 30) + 1;
+                    const input = prompt('추가할 기수를 숫자로 입력하세요.', next);
+                    if (input && !isNaN(input)) {
+                        setAvailableSeasons(prev => Array.from(new Set([...prev, Number(input)])).sort((a,b)=>a-b));
+                        setSeason(Number(input));
+                    }
+                } else {
+                    setSeason(Number(e.target.value));
+                }
+            }} className="bg-transparent text-pink-600 text-sm font-black outline-none border-none cursor-pointer">
               {availableSeasons.map(s => <option key={s} value={s}>{s}기</option>)}
+              {isAdmin && <option value="new">+ 새 기수 추가</option>}
             </select>
           </div>
         </div>
@@ -843,7 +883,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 출연진 편집/추가 모달 */}
+      {/* 운영자: 출연진 편집/추가 팝업 */}
       {castEditModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setCastEditModal({isOpen:false})} />
@@ -899,23 +939,31 @@ export default function App() {
         </div>
       )}
 
-      {/* 프로필 상세보기 패널 */}
+      {/* 💡 프로필 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
       {selectedProfile && isPanelOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeProfile} />
-          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col p-6 sm:p-10 overflow-y-auto animate-slide-in">
-            <button onClick={closeProfile} className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full z-10"><IconX /></button>
+          <div className="relative w-full max-w-lg bg-white rounded-[40px] sm:rounded-[56px] shadow-2xl flex flex-col p-6 sm:p-10 max-h-[90vh] overflow-y-auto animate-fade-in scrollbar-hide">
+            <button onClick={closeProfile} className="absolute top-6 right-6 p-3 bg-gray-100 rounded-full z-10 hover:bg-gray-200 transition-colors"><IconX /></button>
             
-            <div className="mt-8 overflow-hidden rounded-[40px] sm:rounded-[56px] shadow-xl border-[8px] sm:border-[10px] border-white shrink-0 relative bg-gray-100">
-              <div className="absolute top-4 left-4 bg-black text-white font-black px-4 py-2 rounded-full text-sm shadow-md z-10">{season}기</div>
-              <img src={selectedProfile.img || 'https://via.placeholder.com/400x500?text=No+Image'} className="w-full aspect-[4/5] object-cover" />
+            {/* 💡 사진을 작게 하고 이름/직업이 그 옆에 나란히 오도록 배치 (가로 정렬 Flex) */}
+            <div className="flex flex-row items-center gap-6 sm:gap-8 mt-4 sm:mt-2 bg-gray-50 p-5 sm:p-6 rounded-[32px] border border-gray-100 shrink-0">
+              <div className="overflow-hidden rounded-[20px] shadow-lg border-4 border-white shrink-0 relative bg-gray-200 w-28 sm:w-36 aspect-[4/5]">
+                <div className="absolute top-2 left-2 bg-black text-white font-black px-2 py-1 rounded-full text-[10px] shadow-md z-10">{season}기</div>
+                <img src={selectedProfile.img || 'https://via.placeholder.com/400x500?text=No+Image'} className="w-full h-full object-cover" />
+              </div>
+              
+              <div className="flex flex-col justify-center flex-1">
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter break-keep">
+                  {selectedProfile.name}
+                </h2>
+                {selectedProfile.age && <p className="text-sm sm:text-base font-bold text-gray-400 mt-1">{selectedProfile.age}세</p>}
+                <p className="text-pink-500 font-black text-xl sm:text-2xl mt-2">{selectedProfile.job || '직업 미상'}</p>
+              </div>
             </div>
             
-            <div className="mt-8 sm:mt-12 pb-10">
-              <h2 className="text-4xl sm:text-5xl font-black text-gray-900 tracking-tighter">{selectedProfile.name} {selectedProfile.age && <span className="text-2xl sm:text-3xl text-gray-400 ml-2 align-baseline">({selectedProfile.age}세)</span>}</h2>
-              <p className="text-pink-500 font-black text-xl sm:text-2xl mt-2">{selectedProfile.job || '직업 미상'}</p>
-              
-              <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="mt-6 sm:mt-8 pb-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">나이</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.age ? `${selectedProfile.age}세` : '-'}</p></div>
                 <div className="bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">출생연도</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.birth_year || '-'}</p></div>
                 <div className="col-span-2 bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">거주지</span><p className="font-black text-gray-800 text-sm sm:text-base line-clamp-2">{selectedProfile.location || '-'}</p></div>
@@ -938,7 +986,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 게시글 상세보기 패널 */}
+      {/* 게시글 상세보기 패널 (기존 슬라이드 유지 혹은 필요 시 동일하게 변경 가능) */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex justify-end">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closePostModal} />
