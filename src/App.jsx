@@ -411,9 +411,19 @@ export default function App() {
   async function fetchVotes() {
     try {
       const data = await supabaseApi.getVotes();
+      const cMap = {};
       const vMap = {};
-      data.forEach(v => { vMap[v.couple_name] = v.vote_count; });
-      setCoupleVotes(vMap);
+      
+      // 💡 커플 투표와 빌런 투표 데이터를 분리하여 맵핑합니다.
+      data.forEach(v => {
+        if (v.couple_name.startsWith('villain_')) {
+          vMap[v.couple_name.replace('villain_', '')] = v.vote_count;
+        } else {
+          cMap[v.couple_name] = v.vote_count;
+        }
+      });
+      setCoupleVotes(cMap);
+      setVillainVotes(vMap);
     } catch (e) { console.error(e); }
   }
 
@@ -433,7 +443,7 @@ export default function App() {
   const closeProfile = () => { setIsPanelOpen(false); document.body.style.overflow = 'unset'; };
 
   const handleAdminLogin = () => {
-    if (adminPassword === 'hoonie2') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
+    if (adminPassword === 'admin123') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
     else showAlert('비밀번호가 틀렸습니다.');
   };
 
@@ -488,11 +498,13 @@ export default function App() {
     if (c.gender === 'M' && hasVotedVillainM) return showAlert('남성 부문은 이미 투표하셨습니다.');
     if (c.gender === 'F' && hasVotedVillainF) return showAlert('여성 부문은 이미 투표하셨습니다.');
     
-    showConfirm(`${c.name}님께 투표하시겠습니까?`, () => {
+    showConfirm(`${c.name}님께 투표하시겠습니까?`, async () => {
       setVillainVotes(prev => ({ ...prev, [c.id]: (prev[c.id] || 0) + 1 }));
       if (c.gender === 'M') setHasVotedVillainM(true);
       if (c.gender === 'F') setHasVotedVillainF(true);
       showAlert(`${c.gender === 'M' ? '남성' : '여성'} 부문 빌런 투표 완료!`);
+      // 💡 빌런 투표 결과도 금고에 안전하게 저장합니다.
+      await supabaseApi.saveVote(`villain_${c.id}`);
     });
   };
 
@@ -554,7 +566,8 @@ export default function App() {
     const total = Object.values(villainVotes).reduce((a, b) => a + b, 0) || 1;
     return Object.entries(villainVotes)
       .map(([id, v]) => {
-        const cast = castData.find(c => c.id === id);
+        // 💡 숫자형 ID와 문자열 ID를 안전하게 비교하도록 수정했습니다.
+        const cast = castData.find(c => String(c.id) === String(id));
         return { id, name: cast?.name, img: cast?.img, votes: v, percentage: ((v/total)*100).toFixed(1) };
       })
       .filter(c => c.name)
