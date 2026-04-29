@@ -11,7 +11,6 @@ const supabaseHeaders = {
   'Prefer': 'return=representation'
 };
 
-// 로컬 저장소 유틸리티 (내 글 표시용)
 const getMyItems = (key) => JSON.parse(localStorage.getItem(key) || '[]');
 const addMyItem = (key, id) => {
   const items = getMyItems(key);
@@ -21,12 +20,11 @@ const addMyItem = (key, id) => {
 const supabaseApi = {
   _useLocal: false,
 
-  // 게시글 가져오기
   async getPosts() {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/posts?select=*&order=created_at.desc`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       this._useLocal = false;
       return await res.json();
     } catch (e) { 
@@ -38,46 +36,49 @@ const supabaseApi = {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/posts`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(post) });
-      if (!res.ok) throw new Error('API Error');
-      return await res.json();
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      return { data: await res.json(), success: true };
     } catch (e) { 
       this._useLocal = true;
       const posts = JSON.parse(localStorage.getItem('iamsolo_posts') || '[]');
       const newPost = { ...post, id: Date.now(), created_at: new Date().toISOString(), likes: 0 };
       localStorage.setItem('iamsolo_posts', JSON.stringify([newPost, ...posts]));
-      return [newPost];
+      return { data: [newPost], success: false };
     }
   },
   async updatePost(id, post) {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/posts?id=eq.${id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(post) });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      return true;
     } catch (e) { 
       this._useLocal = true;
       const posts = JSON.parse(localStorage.getItem('iamsolo_posts') || '[]');
       const updated = posts.map(p => p.id === id ? { ...p, ...post } : p);
       localStorage.setItem('iamsolo_posts', JSON.stringify(updated));
+      return false;
     }
   },
   async deletePost(id) {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/posts?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      return true;
     } catch (e) { 
       this._useLocal = true;
       const posts = JSON.parse(localStorage.getItem('iamsolo_posts') || '[]');
       localStorage.setItem('iamsolo_posts', JSON.stringify(posts.filter(p => p.id !== id)));
+      return false;
     }
   },
 
-  // 댓글 관련
   async getComments(postId) {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/comments?post_id=eq.${postId}&select=*&order=created_at.desc`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       return await res.json();
     } catch (e) { 
       this._useLocal = true;
@@ -88,21 +89,21 @@ const supabaseApi = {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/comments`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(comment) });
-      if (!res.ok) throw new Error('API Error');
-      return await res.json();
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      return { data: await res.json(), success: true };
     } catch (e) { 
       this._useLocal = true;
       const comments = JSON.parse(localStorage.getItem('iamsolo_comments') || '[]');
       const newComment = { ...comment, id: Date.now(), created_at: new Date().toISOString() };
       localStorage.setItem('iamsolo_comments', JSON.stringify([newComment, ...comments]));
-      return [newComment];
+      return { data: [newComment], success: false };
     }
   },
   async deleteComment(id) {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/comments?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
     } catch (e) { 
       this._useLocal = true;
       const comments = JSON.parse(localStorage.getItem('iamsolo_comments') || '[]');
@@ -113,7 +114,7 @@ const supabaseApi = {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/comments?select=id,post_id`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       return await res.json();
     } catch (e) { 
       this._useLocal = true;
@@ -121,12 +122,11 @@ const supabaseApi = {
     }
   },
 
-  // 기수 및 출연진 관련
   async getAvailableSeasons() {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/participants?select=season`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       const data = await res.json();
       const seasons = Array.from(new Set(data.map(d => d.season)));
       return seasons.length > 0 ? seasons.sort((a,b)=>a-b) : [31];
@@ -141,7 +141,7 @@ const supabaseApi = {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/participants?season=eq.${season}&select=*`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       this._useLocal = false;
       const data = await res.json();
       return data.map(d => ({
@@ -187,11 +187,12 @@ const supabaseApi = {
       if (this._useLocal) throw new Error('Local');
       if (typeof cast.id === 'number') {
         const res = await fetch(`${supabaseUrl}/rest/v1/participants?id=eq.${cast.id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error('API Error');
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
       } else {
         const res = await fetch(`${supabaseUrl}/rest/v1/participants`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error('API Error');
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
       }
+      return true; // 💡 성공 보고
     } catch (e) { 
       this._useLocal = true;
       let local = JSON.parse(localStorage.getItem('iamsolo_participants') || '[]');
@@ -201,6 +202,7 @@ const supabaseApi = {
         local.push({...payload, id: Date.now(), gender: cast.gender, quote: cast.quote, img: cast.img});
       }
       localStorage.setItem('iamsolo_participants', JSON.stringify(local));
+      return false; // 💡 실패(로컬저장) 보고
     }
   },
   async deleteParticipant(id) {
@@ -208,21 +210,22 @@ const supabaseApi = {
       if (this._useLocal) throw new Error('Local');
       if (typeof id === 'number') {
         const res = await fetch(`${supabaseUrl}/rest/v1/participants?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-        if (!res.ok) throw new Error('API Error');
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
       }
+      return true;
     } catch (e) { 
       this._useLocal = true;
       const local = JSON.parse(localStorage.getItem('iamsolo_participants') || '[]');
       localStorage.setItem('iamsolo_participants', JSON.stringify(local.filter(p => p.id !== id)));
+      return false;
     }
   },
 
-  // 투표 관련
   async getVotes() {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/votes?select=*`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       return await res.json();
     } catch (e) { 
       this._useLocal = true;
@@ -233,15 +236,16 @@ const supabaseApi = {
     try {
       if (this._useLocal) throw new Error('Local');
       const res = await fetch(`${supabaseUrl}/rest/v1/votes?couple_name=eq.${couple_name}`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
       const data = await res.json();
       if (data && data.length > 0) {
         const res2 = await fetch(`${supabaseUrl}/rest/v1/votes?id=eq.${data[0].id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify({ vote_count: data[0].vote_count + 1 }) });
-        if (!res2.ok) throw new Error('API Error');
+        if (!res2.ok) throw new Error(`API Error: ${res2.status}`);
       } else {
         const res3 = await fetch(`${supabaseUrl}/rest/v1/votes`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify({ couple_name, vote_count: 1 }) });
-        if (!res3.ok) throw new Error('API Error');
+        if (!res3.ok) throw new Error(`API Error: ${res3.status}`);
       }
+      return true;
     } catch (e) { 
       this._useLocal = true;
       let votes = JSON.parse(localStorage.getItem('iamsolo_votes') || '[]');
@@ -249,6 +253,7 @@ const supabaseApi = {
       if (existing) existing.vote_count += 1;
       else votes.push({ id: Date.now(), couple_name, vote_count: 1 });
       localStorage.setItem('iamsolo_votes', JSON.stringify(votes));
+      return false;
     }
   }
 };
@@ -260,13 +265,11 @@ const IconSearch = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" heig
 const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.5 19a5.5 5.5 0 0 0 2.5-10.5 8.5 8.5 0 1 0-14.5 4.5 5.5 5.5 0 0 0 2 6"></path></svg>;
 
-// 기본 고정 명단
 const STANDARD_CAST = [
   { name: '영수', gender: 'M' }, { name: '영호', gender: 'M' }, { name: '영식', gender: 'M' }, { name: '영철', gender: 'M' }, { name: '광수', gender: 'M' }, { name: '상철', gender: 'M' }, { name: '경수', gender: 'M' },
   { name: '영숙', gender: 'F' }, { name: '정숙', gender: 'F' }, { name: '순자', gender: 'F' }, { name: '영자', gender: 'F' }, { name: '옥순', gender: 'F' }, { name: '현숙', gender: 'F' }, { name: '정희', gender: 'F' }
 ];
 
-// 댓글 섹션 컴포넌트
 function CommentSection({ postId, isAdmin, showConfirm }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -284,7 +287,7 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
     e.preventDefault(); 
     if (!newComment.trim()) return;
     const res = await supabaseApi.insertComment({ post_id: postId, text: newComment, author: '익명' });
-    if (res?.[0]) addMyItem('my_comments', res[0].id);
+    if (res.success && res.data?.[0]) addMyItem('my_comments', res.data[0].id);
     setNewComment(''); 
     fetch();
   };
@@ -318,7 +321,6 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
   );
 }
 
-// === 메인 앱 컴포넌트 ===
 export default function App() {
   const [season, setSeason] = useState(31);
   const [activeTab, setActiveTab] = useState('coupleVote');
@@ -345,7 +347,6 @@ export default function App() {
   const [hasVotedVillainF, setHasVotedVillainF] = useState(false);
   const [firstCouplePick, setFirstCouplePick] = useState(null);
 
-  // 기수 초기화
   useEffect(() => {
     async function init() {
       const s = await supabaseApi.getAvailableSeasons();
@@ -354,15 +355,12 @@ export default function App() {
     init();
   }, []);
 
-  // 데이터 불러오기
   useEffect(() => {
-    fetchCast(); 
-    fetchVotes();
+    fetchCast(); fetchVotes();
     if (activeTab === 'board') fetchPosts();
     setSearchTerm('');
   }, [activeTab, season]);
 
-  // SEO 최적화 메타 태그 (복구 완료)
   useEffect(() => {
     let tabName = '';
     switch (activeTab) {
@@ -394,7 +392,6 @@ export default function App() {
     setMetaTag('og:description', description, 'property');
   }, [season, activeTab, castData]);
 
-  // 출연진 데이터 불러오기 및 기본 14명 자동 병합
   async function fetchCast() {
     const db = await supabaseApi.getParticipants(season) || [];
     setIsCloud(!supabaseApi._useLocal);
@@ -411,7 +408,6 @@ export default function App() {
     setCastData(merged.sort((a,b) => STANDARD_CAST.findIndex(s=>s.name===a.name) - STANDARD_CAST.findIndex(s=>s.name===b.name)));
   }
 
-  // 투표 데이터 불러오기 (커플/빌런 분리)
   async function fetchVotes() {
     const data = await supabaseApi.getVotes() || [];
     const cMap = {}, vMap = {};
@@ -426,7 +422,6 @@ export default function App() {
     setVillainVotes(vMap);
   }
 
-  // 게시판 글 불러오기
   async function fetchPosts() {
     const [p, c] = await Promise.all([supabaseApi.getPosts(), supabaseApi.getAllComments()]);
     const counts = {}; 
@@ -434,11 +429,9 @@ export default function App() {
     setPosts((p || []).map(x => ({ ...x, commentCount: counts[x.id] || 0 })));
   }
 
-  // 유틸 함수
   const showAlert = (m) => setModal({ isOpen: true, type: 'alert', message: m });
   const showConfirm = (m, c) => setModal({ isOpen: true, type: 'confirm', message: m, onConfirm: c });
 
-  // 이미지 압축 업로드
   const handleImageUpload = (e) => {
     const file = e.target.files[0]; 
     if (!file) return;
@@ -464,15 +457,39 @@ export default function App() {
     else showAlert('비밀번호가 틀렸습니다.');
   };
 
-  // 투표 핸들러
+  // 💡 데이터 저장 핸들러에 알림 추가
+  const handleSaveCastEdit = async () => {
+    const success = await supabaseApi.saveParticipant(castEditModal.data, season);
+    setCastEditModal({isOpen:false}); 
+    fetchCast(); 
+    
+    // 💡 실패 시 관리자에게 명확한 경고 전달
+    if (success) {
+      showAlert('클라우드 서버 금고 저장 성공!');
+    } else {
+      showAlert('⚠️ 서버 저장 실패!\n현재 기기(PC)에만 임시 저장되었습니다.\n인터넷 연결 및 데이터베이스 설정을 확인하세요.');
+    }
+  };
+
+  const handleDeleteCast = (id, name) => {
+    if (typeof id === 'string') return showAlert('빈 슬롯은 삭제할 수 없습니다.');
+    showConfirm(`${name}님을 완전히 삭제하시겠습니까?`, async () => {
+      const success = await supabaseApi.deleteParticipant(id);
+      fetchCast();
+      if (success) showAlert('삭제 완료되었습니다.');
+      else showAlert('⚠️ 서버 연결 오류로 완전히 삭제되지 않았습니다.');
+    });
+  };
+
   const handleCoupleVote = async (p2) => {
     if (hasVotedCouple) return showAlert('이미 투표하셨습니다.');
     const key = [firstCouplePick.name, p2.name].sort().join('_');
     setCoupleVotes(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
     setHasVotedCouple(true); 
     setFirstCouplePick(null);
-    showAlert('커플 투표가 성공적으로 기록되었습니다!');
-    await supabaseApi.saveVote(key);
+    const success = await supabaseApi.saveVote(key);
+    if (!success) showAlert('⚠️ 통신 불안정: 투표가 임시 저장되었습니다.');
+    else showAlert('커플 투표가 성공적으로 기록되었습니다!');
   };
 
   const handleVillainVote = (c) => {
@@ -482,35 +499,37 @@ export default function App() {
       setVillainVotes(p => ({ ...p, [c.id]: (p[c.id] || 0) + 1 }));
       if (c.gender === 'M') setHasVotedVillainM(true); 
       else setHasVotedVillainF(true);
-      await supabaseApi.saveVote(`villain_${c.id}`); 
-      showAlert('투표 완료!');
+      const success = await supabaseApi.saveVote(`villain_${c.id}`); 
+      if (!success) showAlert('⚠️ 통신 불안정: 투표가 임시 저장되었습니다.');
+      else showAlert('투표 완료!');
     });
   };
 
-  // 게시판 핸들러
   const handlePostSave = async () => {
     if (!writeModal.title || !writeModal.content) return alert('제목과 내용을 입력하세요.');
+    let success = false;
     if (writeModal.isEdit) {
-      await supabaseApi.updatePost(writeModal.postId, writeModal);
+      success = await supabaseApi.updatePost(writeModal.postId, writeModal);
     } else {
       const res = await supabaseApi.insertPost({ ...writeModal, likes: 0, author: writeModal.author || '익명' });
-      if (res?.[0]) addMyItem('my_posts', res[0].id);
+      if (res.success && res.data?.[0]) addMyItem('my_posts', res.data[0].id);
+      success = res.success;
     }
     setWriteModal({ isOpen: false }); 
     fetchPosts();
+    if (!success) showAlert('⚠️ 서버 오류: 게시글이 임시 저장되었습니다.');
   };
 
-  // 게시글 삭제 복구 완료!
   const handleDeletePost = (id) => {
     showConfirm('정말 이 게시글을 영구 삭제하시겠습니까?', async () => {
-      await supabaseApi.deletePost(id);
+      const success = await supabaseApi.deletePost(id);
       setSelectedPost(null);
       fetchPosts();
-      showAlert('게시글이 삭제되었습니다.');
+      if (!success) showAlert('⚠️ 오류 발생: 완전히 삭제되지 않았습니다.');
+      else showAlert('게시글이 삭제되었습니다.');
     });
   };
 
-  // 랭킹 정렬 계산
   const getSortedCoupleResults = () => {
     const total = Object.values(coupleVotes).reduce((a, b) => a + b, 0) || 1;
     return Object.entries(coupleVotes).map(([k, v]) => {
@@ -572,7 +591,6 @@ export default function App() {
                           <div key={c.id} onClick={()=>setFirstCouplePick(c)} className="cursor-pointer group relative rounded-[20px] overflow-hidden aspect-square bg-gray-100 border active:scale-95 transition-transform">
                             {c.img ? <img src={c.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-gray-200"><IconUser/></div>}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex items-end p-2">
-                              {/* 💡 요청사항: 투표 탭에서 직업 제거 후 이름만 노출 */}
                               <span className="text-white font-black text-[11px] sm:text-xs">{c.name}</span>
                             </div>
                           </div>
@@ -648,8 +666,7 @@ export default function App() {
                          {c.img ? <img src={c.img} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-200"><IconUser/></div>}
                       </div>
                       <div className="p-2 text-center">
-                        <p className="font-black text-gray-800 text-sm">{c.name} {c.age && <span className="text-[9px] text-gray-400">({c.age}세)</span>}</p>
-                        {/* 프로필 탭에서는 직업 노출 */}
+                        <p className="font-black text-gray-800 text-sm">{c.name} {c.age && <span className="text-[9px] text-gray-400">({c.age})</span>}</p>
                         <p className="text-[9px] text-pink-500 font-bold mt-0.5 truncate">{c.job || '정보 없음'}</p>
                       </div>
                     </div>
@@ -675,7 +692,6 @@ export default function App() {
                         <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border-2 border-transparent group-hover:border-red-500 relative">
                           {c.img ? <img src={c.img} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-200"><IconUser/></div>}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex items-end justify-center p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {/* 💡 요청사항: 투표 탭에서 직업 제거 후 이름만 노출 */}
                             <span className="text-white font-black text-[10px]">{c.name}</span>
                           </div>
                         </div>
@@ -723,7 +739,6 @@ export default function App() {
                     <h3 className="font-black text-base line-clamp-1 flex items-center flex-wrap gap-2">
                       {p.title} 
                       {p.commentCount > 0 && <span className="text-pink-500 text-xs">[{p.commentCount}]</span>}
-                      {/* 💡 요청사항: "내가 쓴 글" 뱃지 복구 */}
                       {getMyItems('my_posts').includes(p.id) && <span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-1 rounded ml-1 font-black whitespace-nowrap">내가 쓴 글</span>}
                     </h3>
                     <p className="text-[9px] text-gray-400 font-bold mt-1 uppercase">{p.author} | {p.created_at ? new Date(p.created_at).toLocaleDateString() : '방금'}</p>
@@ -762,13 +777,13 @@ export default function App() {
       </main>
 
       <footer className="mt-auto py-8 text-center border-t flex flex-col items-center gap-2">
-        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black ${isCloud ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-orange-50 text-orange-600 border border-orange-100'}`}>
-          <IconCloud /> {isCloud ? '운영 서버 연결됨 (Cloud)' : '로컬 모드 (Offline)'}
+        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black ${isCloud ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+          <IconCloud /> {isCloud ? '운영 서버 연결됨 (Cloud)' : '오프라인 캐시 모드 (Offline)'}
         </div>
         {!isAdmin ? <button onClick={()=>setShowAdminLogin(true)} className="text-[9px] text-gray-200 font-black hover:text-pink-300 transition-colors">ADMIN_LOGIN</button> : <p className="text-[9px] text-pink-400 font-black tracking-widest">MASTER_MODE_ACTIVE</p>}
       </footer>
 
-      {/* 모달: 프로필 상세보기 (중앙 팝업 / 가로 배치) */}
+      {/* 모달: 프로필 상세보기 */}
       {selectedProfile && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setSelectedProfile(null)} />
@@ -781,7 +796,7 @@ export default function App() {
               </div>
               <div className="flex-1">
                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900 leading-none">{selectedProfile.name}</h2>
-                 {selectedProfile.age && <p className="text-gray-400 font-bold text-xs mt-2">{selectedProfile.age}세</p>}
+                 {selectedProfile.age && <p className="text-gray-400 font-bold text-xs mt-2">{selectedProfile.age}</p>}
                  <p className="text-pink-500 font-black text-lg mt-2">{selectedProfile.job || '정보 없음'}</p>
               </div>
             </div>
@@ -809,7 +824,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 모달: 게시글 상세보기 (중앙) */}
+      {/* 모달: 게시글 상세보기 */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setSelectedPost(null)} />
@@ -817,7 +832,6 @@ export default function App() {
             <div className="flex justify-between items-center border-b pb-4 mb-6">
                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Community Post</span>
                <div className="flex gap-4">
-                 {/* 💡 요청사항: 본인 글일 경우 수정/삭제 버튼 복구 */}
                  {(getMyItems('my_posts').includes(selectedPost.id) || isAdmin) && (
                    <div className="flex items-center gap-3">
                      <button onClick={()=>setWriteModal({isOpen:true, isEdit:true, postId:selectedPost.id, ...selectedPost})} className="text-[10px] font-black text-gray-400 hover:text-pink-500">수정</button>
@@ -845,7 +859,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 기타 입력 모달 (게시글 작성) */}
+      {/* 기타 모달 (글쓰기, 로그인, 편집, 알림) */}
       {writeModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setWriteModal({isOpen:false})} />
@@ -861,7 +875,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 운영자 로그인 모달 */}
       {showAdminLogin && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={()=>setShowAdminLogin(false)} />
@@ -873,7 +886,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 데이터 편집 모달 */}
       {castEditModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setCastEditModal({isOpen:false})} />
@@ -892,7 +904,7 @@ export default function App() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1"><span className="text-[9px] font-black text-gray-400 ml-2">이름</span><input type="text" value={castEditModal.data?.name || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, name:e.target.value}})} className="w-full p-3.5 bg-gray-50 rounded-xl border-none outline-none font-black text-sm" placeholder="이름" /></div>
                 <div className="space-y-1"><span className="text-[9px] font-black text-gray-400 ml-2">성별</span><select value={castEditModal.data?.gender || 'M'} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, gender:e.target.value}})} className="w-full p-3.5 bg-gray-50 rounded-xl border-none outline-none font-black text-sm"><option value="M">남성</option><option value="F">여성</option></select></div>
-                <div className="space-y-1"><span className="text-[9px] font-black text-gray-400 ml-2">나이 (사람이 직접 입력)</span><input type="text" value={castEditModal.data?.age || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, age:e.target.value}})} className="w-full p-3.5 bg-gray-50 rounded-xl border-none outline-none font-black text-sm" placeholder="예: 33" /></div>
+                <div className="space-y-1"><span className="text-[9px] font-black text-gray-400 ml-2">나이 (자유 입력)</span><input type="text" value={castEditModal.data?.age || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, age:e.target.value}})} className="w-full p-3.5 bg-gray-50 rounded-xl border-none outline-none font-black text-sm" placeholder="예: 33세, 비공개" /></div>
                 <div className="space-y-1"><span className="text-[9px] font-black text-gray-400 ml-2">출생연도</span><input type="text" value={castEditModal.data?.birth_year || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, birth_year:e.target.value}})} className="w-full p-3.5 bg-gray-50 rounded-xl border-none outline-none font-black text-sm" placeholder="예: 1992년생" /></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -906,17 +918,25 @@ export default function App() {
               <textarea value={castEditModal.data?.others || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, others:e.target.value}})} className="w-full p-4 bg-gray-50 rounded-xl border-none h-14 font-bold text-xs" placeholder="인스타 계정 등 기타 정보" />
               <textarea value={castEditModal.data?.quote || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, quote:e.target.value}})} className="w-full p-4 bg-gray-50 rounded-xl border-none h-16 font-bold text-xs" placeholder="명대사/한줄평" />
             </div>
-            <div className="flex gap-3 mt-4 shrink-0"><button onClick={()=>setCastEditModal({isOpen:false})} className="flex-1 py-4 bg-gray-100 rounded-xl font-black text-gray-400 text-sm">취소</button><button onClick={async()=>{await supabaseApi.saveParticipant(castEditModal.data, season); setCastEditModal({isOpen:false}); fetchCast(); showAlert('데이터 금고 저장 성공!');}} className="flex-1 py-4 bg-pink-500 text-white rounded-xl font-black text-sm shadow-lg shadow-pink-50">금고에 저장</button></div>
+            <div className="flex gap-3 mt-4 shrink-0">
+               <button onClick={()=>setCastEditModal({isOpen:false})} className="flex-1 py-4 bg-gray-100 rounded-xl font-black text-gray-400 text-sm">취소</button>
+               <button onClick={async()=>{
+                  const success = await supabaseApi.saveParticipant(castEditModal.data, season); 
+                  setCastEditModal({isOpen:false}); 
+                  fetchCast(); 
+                  if(success) showAlert('데이터 금고 저장 성공!');
+                  else showAlert('⚠️ 서버 저장 실패!\n현재 기기(PC)에만 임시 저장되었습니다.\n인터넷 연결 및 데이터베이스 설정을 확인하세요.');
+               }} className="flex-1 py-4 bg-pink-500 text-white rounded-xl font-black text-sm shadow-lg shadow-pink-50">금고에 저장</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 알림 모달 */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fade-in" />
           <div className="relative bg-white w-full max-w-sm rounded-[48px] p-10 text-center shadow-2xl animate-fade-in">
-            <p className="font-black text-gray-900 text-lg mb-10 break-keep leading-snug">{modal.message}</p>
+            <p className="font-black text-gray-900 text-lg mb-10 break-keep leading-snug whitespace-pre-wrap">{modal.message}</p>
             <div className="flex gap-3">
               {modal.type === 'confirm' && <button onClick={()=>setModal({isOpen:false})} className="flex-1 py-4 bg-gray-100 font-black rounded-3xl text-gray-400 text-sm">취소</button>}
               <button onClick={()=>{modal.onConfirm?.(); setModal({isOpen:false})}} className="flex-1 py-4 bg-pink-500 text-white font-black rounded-3xl active:scale-95 transition-transform text-sm">확인</button>
