@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
 // === 1. Supabase 연결 설정 ===
-// 🚨 주의: 반드시 'eyJ...' 로 시작하는 Legacy anon 키를 넣으셔야 통신이 됩니다!
 const supabaseUrl = 'https://gditohvmfxofuqbsbfhab.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkaXRvaHZtZnhvZnVxc2JmaGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNjE4NDcsImV4cCI6MjA5MjkzNzg0N30.SMp5W8Uxmwug_6fsny51mczi9ZYm9K-ubB3takBNwTc'; 
 
@@ -19,27 +18,36 @@ const addMyItem = (key, id) => {
   if (!items.includes(id)) localStorage.setItem(key, JSON.stringify([...items, id]));
 };
 
-// Supabase API 통신 객체 (오프라인 우회 로직 포함)
+// === 🕵️‍♂️ Supabase 에러 자동 추적기 탑재 ===
+const fetchApi = async (path, options = {}) => {
+  const res = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    ...options,
+    headers: { ...supabaseHeaders, ...options.headers }
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`🚨 [Supabase 에러 발생!]`);
+    console.error(`- 문제 발생 테이블: /${path.split('?')[0]}`);
+    console.error(`- 수파베이스의 답변:`, errText);
+    throw new Error(errText);
+  }
+  return res;
+};
+
+// Supabase API 통신 객체
 const supabaseApi = {
   _useLocal: false,
 
   async getPosts() {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/posts?select=*&order=created_at.desc`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('posts?select=*&order=created_at.desc');
       this._useLocal = false;
       return await res.json();
-    } catch (e) { 
-      this._useLocal = true; 
-      return JSON.parse(localStorage.getItem('iamsolo_posts') || '[]'); 
-    }
+    } catch (e) { this._useLocal = true; return JSON.parse(localStorage.getItem('iamsolo_posts') || '[]'); }
   },
   async insertPost(post) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/posts`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(post) });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('posts', { method: 'POST', body: JSON.stringify(post) });
       return { data: await res.json(), success: true };
     } catch (e) { 
       this._useLocal = true;
@@ -51,9 +59,7 @@ const supabaseApi = {
   },
   async updatePost(id, post) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/posts?id=eq.${id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(post) });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      await fetchApi(`posts?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify(post) });
       return true;
     } catch (e) { 
       this._useLocal = true;
@@ -65,9 +71,7 @@ const supabaseApi = {
   },
   async deletePost(id) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/posts?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      await fetchApi(`posts?id=eq.${id}`, { method: 'DELETE' });
       return true;
     } catch (e) { 
       this._useLocal = true;
@@ -79,9 +83,7 @@ const supabaseApi = {
 
   async getComments(postId) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/comments?post_id=eq.${postId}&select=*&order=created_at.desc`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi(`comments?post_id=eq.${postId}&select=*&order=created_at.desc`);
       return await res.json();
     } catch (e) { 
       this._useLocal = true;
@@ -90,9 +92,7 @@ const supabaseApi = {
   },
   async insertComment(comment) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/comments`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(comment) });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('comments', { method: 'POST', body: JSON.stringify(comment) });
       return { data: await res.json(), success: true };
     } catch (e) { 
       this._useLocal = true;
@@ -104,9 +104,7 @@ const supabaseApi = {
   },
   async deleteComment(id) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/comments?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      await fetchApi(`comments?id=eq.${id}`, { method: 'DELETE' });
     } catch (e) { 
       this._useLocal = true;
       const comments = JSON.parse(localStorage.getItem('iamsolo_comments') || '[]');
@@ -115,21 +113,14 @@ const supabaseApi = {
   },
   async getAllComments() {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/comments?select=id,post_id`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('comments?select=id,post_id');
       return await res.json();
-    } catch (e) { 
-      this._useLocal = true;
-      return JSON.parse(localStorage.getItem('iamsolo_comments') || '[]'); 
-    }
+    } catch (e) { this._useLocal = true; return JSON.parse(localStorage.getItem('iamsolo_comments') || '[]'); }
   },
 
   async getAvailableSeasons() {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/participants?select=season`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('participants?select=season');
       const data = await res.json();
       const seasons = Array.from(new Set(data.map(d => d.season)));
       return seasons.length > 0 ? seasons.sort((a,b)=>a-b) : [31];
@@ -142,27 +133,14 @@ const supabaseApi = {
   },
   async getParticipants(season) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/participants?season=eq.${season}&select=*`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
-      this._useLocal = false;
+      const res = await fetchApi(`participants?season=eq.${season}&select=*`);
+      this._useLocal = false; // 여기서 통신 성공 여부가 결정됩니다!
       const data = await res.json();
       return data.map(d => ({
-        id: d.id, 
-        season: d.season, 
-        name: d.name, 
-        gender: d.gender === '남' ? 'M' : 'F',
-        age: d.age || '', 
-        birth_year: d.birth_year || '', 
-        job: d.job || '',
-        company: d.company || '', 
-        position: d.position || '', 
-        education: d.education || '',
-        location: d.location || '', 
-        hobbies: d.hobbies || '', 
-        others: d.others || '',
-        quote: d.description || '', 
-        img: d.image_url || ''
+        id: d.id, season: d.season, name: d.name, gender: d.gender === '남' ? 'M' : 'F', age: d.age || '', 
+        birth_year: d.birth_year || '', job: d.job || '', company: d.company || '', position: d.position || '', 
+        education: d.education || '', location: d.location || '', hobbies: d.hobbies || '', others: d.others || '',
+        quote: d.description || '', img: d.image_url || ''
       }));
     } catch (e) { 
       this._useLocal = true; 
@@ -171,29 +149,16 @@ const supabaseApi = {
   },
   async saveParticipant(cast, season) {
     const payload = {
-      season: season,
-      name: cast.name,
-      gender: cast.gender === 'M' ? '남' : '여',
-      age: cast.age || '', // text 타입 대응 완료
-      birth_year: cast.birth_year || '',
-      job: cast.job || '',
-      company: cast.company || '',
-      position: cast.position || '',
-      education: cast.education || '',
-      location: cast.location || '',
-      hobbies: cast.hobbies || '',
-      others: cast.others || '',
-      description: cast.quote || '',
-      image_url: cast.img || ''
+      season: season, name: cast.name, gender: cast.gender === 'M' ? '남' : '여', age: cast.age || '', 
+      birth_year: cast.birth_year || '', job: cast.job || '', company: cast.company || '', position: cast.position || '',
+      education: cast.education || '', location: cast.location || '', hobbies: cast.hobbies || '', others: cast.others || '',
+      description: cast.quote || '', image_url: cast.img || ''
     };
     try {
-      if (this._useLocal) throw new Error('Local');
       if (typeof cast.id === 'number') {
-        const res = await fetch(`${supabaseUrl}/rest/v1/participants?id=eq.${cast.id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        await fetchApi(`participants?id=eq.${cast.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
       } else {
-        const res = await fetch(`${supabaseUrl}/rest/v1/participants`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(payload) });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        await fetchApi('participants', { method: 'POST', body: JSON.stringify(payload) });
       }
       return true;
     } catch (e) { 
@@ -210,11 +175,7 @@ const supabaseApi = {
   },
   async deleteParticipant(id) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      if (typeof id === 'number') {
-        const res = await fetch(`${supabaseUrl}/rest/v1/participants?id=eq.${id}`, { method: 'DELETE', headers: supabaseHeaders });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-      }
+      if (typeof id === 'number') await fetchApi(`participants?id=eq.${id}`, { method: 'DELETE' });
       return true;
     } catch (e) { 
       this._useLocal = true;
@@ -226,27 +187,18 @@ const supabaseApi = {
 
   async getVotes() {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/votes?select=*`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi('votes?select=*');
       return await res.json();
-    } catch (e) { 
-      this._useLocal = true;
-      return JSON.parse(localStorage.getItem('iamsolo_votes') || '[]'); 
-    }
+    } catch (e) { this._useLocal = true; return JSON.parse(localStorage.getItem('iamsolo_votes') || '[]'); }
   },
   async saveVote(couple_name) {
     try {
-      if (this._useLocal) throw new Error('Local');
-      const res = await fetch(`${supabaseUrl}/rest/v1/votes?couple_name=eq.${couple_name}`, { headers: supabaseHeaders });
-      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+      const res = await fetchApi(`votes?couple_name=eq.${couple_name}`);
       const data = await res.json();
       if (data && data.length > 0) {
-        const res2 = await fetch(`${supabaseUrl}/rest/v1/votes?id=eq.${data[0].id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify({ vote_count: data[0].vote_count + 1 }) });
-        if (!res2.ok) throw new Error(`API Error: ${res2.status}`);
+        await fetchApi(`votes?id=eq.${data[0].id}`, { method: 'PATCH', body: JSON.stringify({ vote_count: data[0].vote_count + 1 }) });
       } else {
-        const res3 = await fetch(`${supabaseUrl}/rest/v1/votes`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify({ couple_name, vote_count: 1 }) });
-        if (!res3.ok) throw new Error(`API Error: ${res3.status}`);
+        await fetchApi('votes', { method: 'POST', body: JSON.stringify({ couple_name, vote_count: 1 }) });
       }
       return true;
     } catch (e) { 
@@ -368,7 +320,6 @@ export default function App() {
     setSearchTerm('');
   }, [activeTab, season]);
 
-  // 🚀 SEO 최적화 메타 태그 (카카오톡, 구글 검색 유입 극대화)
   useEffect(() => {
     let tabName = '';
     switch (activeTab) {
@@ -379,7 +330,6 @@ export default function App() {
       default: tabName = '홈';
     }
     
-    // 브라우저 탭 타이틀 동적 변경
     const pageTitle = `${season}기 ${tabName} - 나는솔로팬이다`;
     document.title = pageTitle;
 
@@ -393,16 +343,12 @@ export default function App() {
       meta.setAttribute('content', content);
     };
 
-    // 검색 키워드에 현재 기수 출연진 이름 자동 삽입
     const names = castData.map(c => c.name);
     const keywords = `나는솔로, 나는 솔로, 나는SOLO, ${season}기, ${season}기 직업, ${season}기 인스타, ${names.join(', ')}, ${names.map(n => `나는 솔로 ${season}기 ${n}`).join(', ')}`;
     const description = `나는 솔로(나는 SOLO) ${season}기 출연진 프로필, 직업, 인스타 및 시청자들의 실시간 인기 투표와 솔직한 리뷰를 볼 수 있는 팬 커뮤니티입니다.`;
 
-    // 기본 SEO 태그
     setMetaTag('name', 'keywords', keywords);
     setMetaTag('name', 'description', description);
-
-    // 오픈 그래프 (카카오톡/인스타그램 공유 시 노출되는 정보)
     setMetaTag('property', 'og:title', pageTitle);
     setMetaTag('property', 'og:description', description);
     setMetaTag('property', 'og:type', 'website');
@@ -411,7 +357,7 @@ export default function App() {
 
   async function fetchCast() {
     const db = await supabaseApi.getParticipants(season) || [];
-    setIsCloud(!supabaseApi._useLocal);
+    setIsCloud(!supabaseApi._useLocal); // 🚨 여기서 초록불/빨간불이 결정됩니다!
     
     let merged = [...db];
     let tid = 1;
