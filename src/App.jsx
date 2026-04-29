@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // === 1. Supabase 연결 설정 ===
+// (고객님의 실제 데이터베이스 URL과 API 키)
 const supabaseUrl = 'https://gditohvmfxofuqbsbfhab.supabase.co';
 const supabaseKey = 'sb_publishable_JuLu0N945MyR5VNoAaiJNA_Wrx9uQTG';
 
@@ -11,12 +12,14 @@ const supabaseHeaders = {
   'Prefer': 'return=representation'
 };
 
+// 로컬 저장소 유틸리티 (내 글 표시용)
 const getMyItems = (key) => JSON.parse(localStorage.getItem(key) || '[]');
 const addMyItem = (key, id) => {
   const items = getMyItems(key);
   if (!items.includes(id)) localStorage.setItem(key, JSON.stringify([...items, id]));
 };
 
+// Supabase API 통신 객체 (오프라인 우회 로직 포함)
 const supabaseApi = {
   _useLocal: false,
 
@@ -171,7 +174,7 @@ const supabaseApi = {
       season: season,
       name: cast.name,
       gender: cast.gender === 'M' ? '남' : '여',
-      age: cast.age || '', 
+      age: cast.age || '', // text 타입 대응 완료
       birth_year: cast.birth_year || '',
       job: cast.job || '',
       company: cast.company || '',
@@ -192,7 +195,7 @@ const supabaseApi = {
         const res = await fetch(`${supabaseUrl}/rest/v1/participants`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
       }
-      return true; // 💡 성공 보고
+      return true;
     } catch (e) { 
       this._useLocal = true;
       let local = JSON.parse(localStorage.getItem('iamsolo_participants') || '[]');
@@ -202,7 +205,7 @@ const supabaseApi = {
         local.push({...payload, id: Date.now(), gender: cast.gender, quote: cast.quote, img: cast.img});
       }
       localStorage.setItem('iamsolo_participants', JSON.stringify(local));
-      return false; // 💡 실패(로컬저장) 보고
+      return false;
     }
   },
   async deleteParticipant(id) {
@@ -258,18 +261,20 @@ const supabaseApi = {
   }
 };
 
-// --- 아이콘 ---
+// --- 아이콘 컴포넌트 ---
 const IconHeart = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-pink-500"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>;
 const IconX = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
 const IconSearch = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
 const IconCloud = () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.5 19a5.5 5.5 0 0 0 2.5-10.5 8.5 8.5 0 1 0-14.5 4.5 5.5 5.5 0 0 0 2 6"></path></svg>;
 
+// 기본 고정 명단 14명
 const STANDARD_CAST = [
   { name: '영수', gender: 'M' }, { name: '영호', gender: 'M' }, { name: '영식', gender: 'M' }, { name: '영철', gender: 'M' }, { name: '광수', gender: 'M' }, { name: '상철', gender: 'M' }, { name: '경수', gender: 'M' },
   { name: '영숙', gender: 'F' }, { name: '정숙', gender: 'F' }, { name: '순자', gender: 'F' }, { name: '영자', gender: 'F' }, { name: '옥순', gender: 'F' }, { name: '현숙', gender: 'F' }, { name: '정희', gender: 'F' }
 ];
 
+// 댓글 섹션 컴포넌트
 function CommentSection({ postId, isAdmin, showConfirm }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
@@ -321,6 +326,7 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
   );
 }
 
+// === 메인 앱 컴포넌트 ===
 export default function App() {
   const [season, setSeason] = useState(31);
   const [activeTab, setActiveTab] = useState('coupleVote');
@@ -356,40 +362,51 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetchCast(); fetchVotes();
+    fetchCast(); 
+    fetchVotes();
     if (activeTab === 'board') fetchPosts();
     setSearchTerm('');
   }, [activeTab, season]);
 
+  // 🚀 SEO 최적화 메타 태그 (카카오톡, 구글 검색 유입 극대화)
   useEffect(() => {
     let tabName = '';
     switch (activeTab) {
       case 'coupleVote': tabName = '최애 커플 투표'; break;
       case 'villainVote': tabName = '최고 빌런 투표'; break;
       case 'profile': tabName = '출연진 프로필'; break;
-      case 'board': tabName = '전체 게시판'; break;
+      case 'board': tabName = '자유 게시판'; break;
       default: tabName = '홈';
     }
-    document.title = `${season}기 ${tabName} - 나는솔로팬이다`;
+    
+    // 브라우저 탭 타이틀 동적 변경
+    const pageTitle = `${season}기 ${tabName} - 나는솔로팬이다`;
+    document.title = pageTitle;
 
-    const setMetaTag = (name, content, attr = 'name') => {
-      let meta = document.querySelector(`meta[${attr}="${name}"]`);
+    const setMetaTag = (attrName, name, content) => {
+      let meta = document.querySelector(`meta[${attrName}="${name}"]`);
       if (!meta) { 
         meta = document.createElement('meta'); 
-        meta.setAttribute(attr, name); 
+        meta.setAttribute(attrName, name); 
         document.head.appendChild(meta); 
       }
       meta.setAttribute('content', content);
     };
 
+    // 검색 키워드에 현재 기수 출연진 이름 자동 삽입
     const names = castData.map(c => c.name);
-    const keywords = `나는솔로, 나는 솔로, ${season}기, ${names.join(', ')}, ${names.map(n => `나는 솔로 ${n}`).join(', ')}, 나솔팬`;
+    const keywords = `나는솔로, 나는 솔로, 나는SOLO, ${season}기, ${season}기 직업, ${season}기 인스타, ${names.join(', ')}, ${names.map(n => `나는 솔로 ${season}기 ${n}`).join(', ')}`;
     const description = `나는 솔로(나는 SOLO) ${season}기 출연진 프로필, 직업, 인스타 및 시청자들의 실시간 인기 투표와 솔직한 리뷰를 볼 수 있는 팬 커뮤니티입니다.`;
 
-    setMetaTag('keywords', keywords);
-    setMetaTag('description', description);
-    setMetaTag('og:title', document.title, 'property');
-    setMetaTag('og:description', description, 'property');
+    // 기본 SEO 태그
+    setMetaTag('name', 'keywords', keywords);
+    setMetaTag('name', 'description', description);
+
+    // 오픈 그래프 (카카오톡/인스타그램 공유 시 노출되는 정보)
+    setMetaTag('property', 'og:title', pageTitle);
+    setMetaTag('property', 'og:description', description);
+    setMetaTag('property', 'og:type', 'website');
+    setMetaTag('property', 'og:site_name', '나는솔로팬이다');
   }, [season, activeTab, castData]);
 
   async function fetchCast() {
@@ -453,32 +470,8 @@ export default function App() {
   };
 
   const handleAdminLogin = () => {
-    if (adminPassword === 'admin123') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공'); }
+    if (adminPassword === 'hoonie2') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공'); }
     else showAlert('비밀번호가 틀렸습니다.');
-  };
-
-  // 💡 데이터 저장 핸들러에 알림 추가
-  const handleSaveCastEdit = async () => {
-    const success = await supabaseApi.saveParticipant(castEditModal.data, season);
-    setCastEditModal({isOpen:false}); 
-    fetchCast(); 
-    
-    // 💡 실패 시 관리자에게 명확한 경고 전달
-    if (success) {
-      showAlert('클라우드 서버 금고 저장 성공!');
-    } else {
-      showAlert('⚠️ 서버 저장 실패!\n현재 기기(PC)에만 임시 저장되었습니다.\n인터넷 연결 및 데이터베이스 설정을 확인하세요.');
-    }
-  };
-
-  const handleDeleteCast = (id, name) => {
-    if (typeof id === 'string') return showAlert('빈 슬롯은 삭제할 수 없습니다.');
-    showConfirm(`${name}님을 완전히 삭제하시겠습니까?`, async () => {
-      const success = await supabaseApi.deleteParticipant(id);
-      fetchCast();
-      if (success) showAlert('삭제 완료되었습니다.');
-      else showAlert('⚠️ 서버 연결 오류로 완전히 삭제되지 않았습니다.');
-    });
   };
 
   const handleCoupleVote = async (p2) => {
@@ -488,7 +481,7 @@ export default function App() {
     setHasVotedCouple(true); 
     setFirstCouplePick(null);
     const success = await supabaseApi.saveVote(key);
-    if (!success) showAlert('⚠️ 통신 불안정: 투표가 임시 저장되었습니다.');
+    if (!success) showAlert('⚠️ 통신 불안정: 투표가 브라우저에 임시 저장되었습니다.');
     else showAlert('커플 투표가 성공적으로 기록되었습니다!');
   };
 
@@ -500,7 +493,7 @@ export default function App() {
       if (c.gender === 'M') setHasVotedVillainM(true); 
       else setHasVotedVillainF(true);
       const success = await supabaseApi.saveVote(`villain_${c.id}`); 
-      if (!success) showAlert('⚠️ 통신 불안정: 투표가 임시 저장되었습니다.');
+      if (!success) showAlert('⚠️ 통신 불안정: 투표가 브라우저에 임시 저장되었습니다.');
       else showAlert('투표 완료!');
     });
   };
@@ -517,7 +510,7 @@ export default function App() {
     }
     setWriteModal({ isOpen: false }); 
     fetchPosts();
-    if (!success) showAlert('⚠️ 서버 오류: 게시글이 임시 저장되었습니다.');
+    if (!success) showAlert('⚠️ 통신 에러: 게시글이 로컬에 임시 저장되었습니다.');
   };
 
   const handleDeletePost = (id) => {
@@ -525,7 +518,7 @@ export default function App() {
       const success = await supabaseApi.deletePost(id);
       setSelectedPost(null);
       fetchPosts();
-      if (!success) showAlert('⚠️ 오류 발생: 완전히 삭제되지 않았습니다.');
+      if (!success) showAlert('⚠️ 오류 발생: 서버에서 완전히 삭제되지 않았습니다.');
       else showAlert('게시글이 삭제되었습니다.');
     });
   };
@@ -552,7 +545,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-800 flex flex-col">
-      {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shrink-0 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-5 flex justify-between items-center">
           <div>
@@ -591,6 +583,7 @@ export default function App() {
                           <div key={c.id} onClick={()=>setFirstCouplePick(c)} className="cursor-pointer group relative rounded-[20px] overflow-hidden aspect-square bg-gray-100 border active:scale-95 transition-transform">
                             {c.img ? <img src={c.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform" /> : <div className="w-full h-full flex items-center justify-center text-gray-200"><IconUser/></div>}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex items-end p-2">
+                              {/* 직업 제거, 이름만 표시 */}
                               <span className="text-white font-black text-[11px] sm:text-xs">{c.name}</span>
                             </div>
                           </div>
@@ -654,7 +647,7 @@ export default function App() {
           <div className="space-y-8 animate-fade-in">
             <div className="bg-white p-4 rounded-3xl shadow-sm border flex items-center gap-3">
               <IconSearch />
-              <input type="text" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="이름, 직업, 출생연도(1992) 등으로 검색..." className="flex-1 border-none outline-none font-bold text-sm" />
+              <input type="text" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="이름, 직업, 출생연도 등으로 검색..." className="flex-1 border-none outline-none font-bold text-sm" />
             </div>
             {['M', 'F'].map(g => (
               <div key={g}>
@@ -667,6 +660,7 @@ export default function App() {
                       </div>
                       <div className="p-2 text-center">
                         <p className="font-black text-gray-800 text-sm">{c.name} {c.age && <span className="text-[9px] text-gray-400">({c.age})</span>}</p>
+                        {/* 프로필 탭에서는 직업 노출 */}
                         <p className="text-[9px] text-pink-500 font-bold mt-0.5 truncate">{c.job || '정보 없음'}</p>
                       </div>
                     </div>
@@ -692,6 +686,7 @@ export default function App() {
                         <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 border-2 border-transparent group-hover:border-red-500 relative">
                           {c.img ? <img src={c.img} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-200"><IconUser/></div>}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex items-end justify-center p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* 직업 제거, 이름만 표시 */}
                             <span className="text-white font-black text-[10px]">{c.name}</span>
                           </div>
                         </div>
@@ -739,6 +734,7 @@ export default function App() {
                     <h3 className="font-black text-base line-clamp-1 flex items-center flex-wrap gap-2">
                       {p.title} 
                       {p.commentCount > 0 && <span className="text-pink-500 text-xs">[{p.commentCount}]</span>}
+                      {/* 내가 쓴 글 뱃지 */}
                       {getMyItems('my_posts').includes(p.id) && <span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-1 rounded ml-1 font-black whitespace-nowrap">내가 쓴 글</span>}
                     </h3>
                     <p className="text-[9px] text-gray-400 font-bold mt-1 uppercase">{p.author} | {p.created_at ? new Date(p.created_at).toLocaleDateString() : '방금'}</p>
@@ -783,7 +779,7 @@ export default function App() {
         {!isAdmin ? <button onClick={()=>setShowAdminLogin(true)} className="text-[9px] text-gray-200 font-black hover:text-pink-300 transition-colors">ADMIN_LOGIN</button> : <p className="text-[9px] text-pink-400 font-black tracking-widest">MASTER_MODE_ACTIVE</p>}
       </footer>
 
-      {/* 모달: 프로필 상세보기 */}
+      {/* 모달: 프로필 상세보기 (중앙 팝업 / 가로 배치) */}
       {selectedProfile && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setSelectedProfile(null)} />
@@ -824,7 +820,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 모달: 게시글 상세보기 */}
+      {/* 모달: 게시글 상세보기 (중앙) */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setSelectedPost(null)} />
@@ -832,6 +828,7 @@ export default function App() {
             <div className="flex justify-between items-center border-b pb-4 mb-6">
                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Community Post</span>
                <div className="flex gap-4">
+                 {/* 본인 글일 경우 수정/삭제 버튼 노출 */}
                  {(getMyItems('my_posts').includes(selectedPost.id) || isAdmin) && (
                    <div className="flex items-center gap-3">
                      <button onClick={()=>setWriteModal({isOpen:true, isEdit:true, postId:selectedPost.id, ...selectedPost})} className="text-[10px] font-black text-gray-400 hover:text-pink-500">수정</button>
@@ -859,7 +856,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 기타 모달 (글쓰기, 로그인, 편집, 알림) */}
+      {/* 기타 입력 모달 (게시글 작성) */}
       {writeModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setWriteModal({isOpen:false})} />
@@ -875,6 +872,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 운영자 로그인 모달 */}
       {showAdminLogin && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-fade-in">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={()=>setShowAdminLogin(false)} />
@@ -886,6 +884,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 데이터 편집 모달 */}
       {castEditModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setCastEditModal({isOpen:false})} />
@@ -925,13 +924,14 @@ export default function App() {
                   setCastEditModal({isOpen:false}); 
                   fetchCast(); 
                   if(success) showAlert('데이터 금고 저장 성공!');
-                  else showAlert('⚠️ 서버 저장 실패!\n현재 기기(PC)에만 임시 저장되었습니다.\n인터넷 연결 및 데이터베이스 설정을 확인하세요.');
+                  else showAlert('⚠️ 서버 저장 실패!\n현재 환경에서 통신이 차단되어 임시 저장되었습니다.\nCodeSandbox 같은 실제 환경에서 실행해 주세요.');
                }} className="flex-1 py-4 bg-pink-500 text-white rounded-xl font-black text-sm shadow-lg shadow-pink-50">금고에 저장</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* 알림 모달 */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fade-in" />
