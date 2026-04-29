@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 // === 1. Supabase 연결 설정 ===
-// (고객님의 실제 데이터베이스 URL과 API 키)
+// 🚨 주의: 반드시 'eyJ...' 로 시작하는 Legacy anon 키를 넣으셔야 통신이 됩니다!
 const supabaseUrl = 'https://gditohvmfxofuqbsbfhab.supabase.co';
-const supabaseKey = 'sb_publishable_JuLu0N945MyR5VNoAaiJNA_Wrx9uQTG';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkaXRvaHZtZnhvZnVxc2JmaGFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNjE4NDcsImV4cCI6MjA5MjkzNzg0N30.SMp5W8Uxmwug_6fsny51mczi9ZYm9K-ubB3takBNwTc'; 
 
 const supabaseHeaders = {
   'apikey': supabaseKey,
@@ -763,7 +763,7 @@ export default function App() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={()=>setCastEditModal({isOpen:true, data:{...c}})} className="text-[10px] font-black bg-gray-100 px-3 py-1.5 rounded-lg">편집</button>
-                      <button onClick={()=>showConfirm(`${c.name} 삭제?`, async()=>{await supabaseApi.deleteParticipant(c.id); fetchCast();})} className="text-[10px] font-black bg-red-50 text-red-500 px-3 py-1.5 rounded-lg">삭제</button>
+                      <button onClick={()=>handleDeleteCast(c.id, c.name)} className="text-[10px] font-black bg-red-50 text-red-500 px-3 py-1.5 rounded-lg">삭제</button>
                     </div>
                   </div>
                 ))}
