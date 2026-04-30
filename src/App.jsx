@@ -323,9 +323,11 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
               ) : (
                 <div className="flex justify-between items-start">
                   <div className="flex-1 pr-4">
-                    {/* 💡 수정: 댓글 작성자 표시 영역 추가 */}
-                    <span className="text-[10px] font-black text-gray-400 block mb-1">{comment.author || '익명'}</span>
-                    <p className="text-gray-700 text-sm font-medium leading-relaxed whitespace-pre-wrap">{comment.text}</p>
+                    {/* 💡 닉네임과 댓글 내용을 한 줄에 나란히 표시 */}
+                    <p className="text-gray-700 text-sm font-medium leading-relaxed whitespace-pre-wrap">
+                      <span className="font-black text-gray-800 mr-2">{comment.author || '익명'}</span>
+                      {comment.text}
+                    </p>
                   </div>
                   <div className="flex gap-3 shrink-0 mt-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     {isMine && (
@@ -1005,7 +1007,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 프로필 상세보기 패널 */}
+      {/* 프로필 상세보기 패널 (중앙 팝업 모달) */}
       {selectedProfile && isPanelOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeProfile} />
@@ -1051,7 +1053,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 게시글 상세보기 패널 */}
+      {/* 게시글 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closePostModal} />
