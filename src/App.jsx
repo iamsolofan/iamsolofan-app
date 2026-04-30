@@ -90,6 +90,19 @@ const supabaseApi = {
       localStorage.setItem('iamsolo_comments', JSON.stringify([newComment, ...comments])); return [newComment];
     }
   },
+  // 💡 [신규 추가됨] 댓글 수정 기능
+  async updateComment(id, text) {
+    try {
+      if (this._useLocal) throw new Error('Local Mode');
+      const res = await fetch(`${supabaseUrl}/rest/v1/comments?id=eq.${id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify({ text }) });
+      if (!res.ok) throw new Error('API Error'); return true;
+    } catch (e) {
+      this._useLocal = true; this._initLocal();
+      const comments = JSON.parse(localStorage.getItem('iamsolo_comments'));
+      const updated = comments.map(c => c.id === id ? { ...c, text } : c);
+      localStorage.setItem('iamsolo_comments', JSON.stringify(updated)); return false;
+    }
+  },
   async deleteComment(id) {
     try {
       if (this._useLocal) throw new Error('Local Mode');
@@ -108,7 +121,6 @@ const supabaseApi = {
     } catch (e) { this._useLocal = true; this._initLocal(); return JSON.parse(localStorage.getItem('iamsolo_comments')); }
   },
 
-  // 💡 현재 저장되어 있는 기수(Season) 목록만 불러오는 함수
   async getAvailableSeasons() {
     try {
       if (this._useLocal) throw new Error('Local Mode');
@@ -136,6 +148,7 @@ const supabaseApi = {
         season: d.season,
         name: d.name,
         gender: d.gender === '남' ? 'M' : 'F',
+        age: d.age || '',
         birth_year: d.birth_year || '',
         job: d.job || '',
         company: d.company || '',
@@ -157,6 +170,7 @@ const supabaseApi = {
       season: season,
       name: cast.name || '이름없음',
       gender: cast.gender === 'M' ? '남' : '여',
+      age: cast.age || '', // 💡 텍스트 입력 나이 그대로 저장됨
       birth_year: cast.birth_year || '',
       job: cast.job || '',
       company: cast.company || '',
@@ -170,9 +184,9 @@ const supabaseApi = {
     };
     try {
       if (this._useLocal) throw new Error('Local Mode');
-      if (typeof cast.id === 'number') { // 숫자 ID면 기존 데이터 업데이트 (PATCH)
+      if (typeof cast.id === 'number') { 
         await fetch(`${supabaseUrl}/rest/v1/participants?id=eq.${cast.id}`, { method: 'PATCH', headers: supabaseHeaders, body: JSON.stringify(payload) });
-      } else { // 문자열 ID('temp_x')면 새 데이터 삽입 (POST)
+      } else { 
         await fetch(`${supabaseUrl}/rest/v1/participants`, { method: 'POST', headers: supabaseHeaders, body: JSON.stringify(payload) });
       }
     } catch (error) {
@@ -235,7 +249,6 @@ const IconUser = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height
 const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
 const IconSearch = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>;
 
-// 💡 매 기수마다 무조건 표시될 '고정 기본 명단 14명'
 const STANDARD_CAST = [
   { name: '영수', gender: 'M' }, { name: '영호', gender: 'M' }, { name: '영식', gender: 'M' }, { name: '영철', gender: 'M' }, { name: '광수', gender: 'M' }, { name: '상철', gender: 'M' }, { name: '경수', gender: 'M' },
   { name: '영숙', gender: 'F' }, { name: '정숙', gender: 'F' }, { name: '순자', gender: 'F' }, { name: '영자', gender: 'F' }, { name: '옥순', gender: 'F' }, { name: '현숙', gender: 'F' }, { name: '정희', gender: 'F' }
@@ -245,6 +258,8 @@ const STANDARD_CAST = [
 function CommentSection({ postId, isAdmin, showConfirm }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [editingId, setEditingId] = useState(null); // 💡 수정 모드 활성화를 위한 상태
+  const [editText, setEditText] = useState('');     // 💡 수정 중인 텍스트
 
   useEffect(() => { if (postId) fetchComments(); }, [postId]);
 
@@ -265,6 +280,16 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
     } catch (error) { alert('댓글 저장에 실패했습니다.'); }
   };
 
+  // 💡 [추가] 댓글 수정 완료 함수
+  const handleSaveEdit = async (id) => {
+    if (editText.trim() === '') return;
+    try {
+      await supabaseApi.updateComment(id, editText);
+      setEditingId(null);
+      fetchComments();
+    } catch (error) { alert('댓글 수정에 실패했습니다.'); }
+  };
+
   const handleDeleteComment = (id) => {
     showConfirm('댓글을 삭제하시겠습니까?', async () => {
       await supabaseApi.deleteComment(id);
@@ -280,25 +305,70 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
         <button type="submit" className="bg-gray-900 text-white px-6 py-4 rounded-2xl hover:bg-black font-black text-sm shadow-sm transition-colors">등록</button>
       </form>
       <div className="space-y-3">
-        {comments.map((comment) => (
-          <div key={comment.id} className="p-5 bg-gray-50 rounded-2xl shadow-sm flex justify-between items-start group transition-all">
-            <p className="text-gray-700 text-sm font-medium leading-relaxed pr-4 flex-1">{comment.text}</p>
-            {(getMyItems('my_comments').includes(comment.id) || isAdmin) && (
-              <button onClick={() => handleDeleteComment(comment.id)} className="text-xs font-black text-gray-300 hover:text-red-500 transition-colors whitespace-nowrap mt-1">삭제</button>
-            )}
-          </div>
-        ))}
+        {comments.map((comment) => {
+          const isMine = getMyItems('my_comments').includes(comment.id);
+          return (
+            <div key={comment.id} className="p-5 bg-gray-50 rounded-2xl shadow-sm flex flex-col group transition-all">
+              {editingId === comment.id ? (
+                // 💡 수정 모드일 때 보여지는 화면
+                <div className="flex gap-2 w-full items-center">
+                  <input type="text" value={editText} onChange={e=>setEditText(e.target.value)} className="flex-1 p-3 rounded-xl border border-gray-200 font-medium text-sm focus:ring-2 focus:ring-pink-300 bg-white outline-none" autoFocus />
+                  <button onClick={()=>handleSaveEdit(comment.id)} className="text-xs text-blue-500 font-black px-3 py-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">완료</button>
+                  <button onClick={()=>setEditingId(null)} className="text-xs text-gray-400 font-black px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap">취소</button>
+                </div>
+              ) : (
+                // 기본 보기 화면
+                <div className="flex justify-between items-start">
+                  <p className="text-gray-700 text-sm font-medium leading-relaxed pr-4 flex-1 whitespace-pre-wrap">{comment.text}</p>
+                  <div className="flex gap-3 shrink-0 mt-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* 💡 내가 작성한 글일 때만 수정 버튼 노출! */}
+                    {isMine && (
+                      <button onClick={() => { setEditingId(comment.id); setEditText(comment.text); }} className="text-xs font-black text-gray-400 hover:text-blue-500 transition-colors whitespace-nowrap">수정</button>
+                    )}
+                    {(isMine || isAdmin) && (
+                      <button onClick={() => handleDeleteComment(comment.id)} className="text-xs font-black text-gray-400 hover:text-red-500 transition-colors whitespace-nowrap">삭제</button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {comments.length === 0 && <p className="text-gray-400 text-center py-6 text-sm font-bold">첫 번째 댓글을 남겨보세요!</p>}
       </div>
     </div>
   );
 }
 
+// 💡 [변경됨] 사진 컴포넌트 (showJob 스위치 추가!)
+const CastCard = ({ cast, onClick, showJob = false }) => (
+  <div onClick={() => onClick(cast)} className="relative group cursor-pointer overflow-hidden rounded-2xl shadow-sm hover:shadow-md transition-all aspect-square w-full bg-gray-100 border border-gray-200 flex flex-col">
+    {cast.img ? (
+      <img src={cast.img} alt={cast.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+    ) : (
+      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
+        <IconUser /> <span className="text-[10px] mt-1 font-bold opacity-50 uppercase tracking-widest text-center">Empty<br/>Slot</span>
+      </div>
+    )}
+    {/* 항상 이름만 보여주는 그라데이션 영역 */}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-3 sm:p-4">
+      <span className="text-white font-black text-sm sm:text-base drop-shadow-md">{cast.name} {cast.age && <span className="text-[10px] sm:text-xs font-bold text-gray-300 ml-1">({cast.age})</span>}</span>
+    </div>
+    
+    {/* 💡 showJob 스위치가 켜졌을 때만 (출연진 프로필 탭에서만) 직업을 표시합니다! */}
+    {showJob && cast.job && (
+      <div className="absolute top-0 left-0 w-full bg-black/60 backdrop-blur-sm p-1.5 text-center transition-opacity opacity-0 group-hover:opacity-100">
+        <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate block">{cast.job}</span>
+      </div>
+    )}
+  </div>
+);
+
 // === 3. 메인 애플리케이션 컴포넌트 ===
 export default function App() {
   const [season, setSeason] = useState(31);
   const [activeTab, setActiveTab] = useState('coupleVote');
-  const [availableSeasons, setAvailableSeasons] = useState([31]); // 💡 35기 등 불필요한 고정값 제거
+  const [availableSeasons, setAvailableSeasons] = useState([31]);
   const [castData, setCastData] = useState([]);
   const [coupleVotes, setCoupleVotes] = useState({});
   const [villainVotes, setVillainVotes] = useState({});
@@ -324,11 +394,10 @@ export default function App() {
   const [adminPassword, setAdminPassword] = useState('');
   const [castEditModal, setCastEditModal] = useState({ isOpen: false, data: null });
 
-  // 💡 처음 실행될 때 금고(DB)에 존재하는 기수 목록만 가져와서 선택창에 세팅
   useEffect(() => {
     async function initSeasons() {
       const fetchedSeasons = await supabaseApi.getAvailableSeasons();
-      if (!fetchedSeasons.includes(31)) fetchedSeasons.push(31); // 기본값 31기는 무조건 존재
+      if (!fetchedSeasons.includes(31)) fetchedSeasons.push(31);
       setAvailableSeasons(fetchedSeasons.sort((a, b) => a - b));
     }
     initSeasons();
@@ -373,14 +442,12 @@ export default function App() {
     setMetaTag('og:site_name', '나는솔로팬이다', 'property');
   }, [season, activeTab, castData]);
 
-  // 💡 데이터 로드 시 기본 14명 자동 병합 로직
   async function fetchCast() {
     try {
       const dbData = await supabaseApi.getParticipants(season) || [];
       let mergedData = [...dbData];
       let tempIdCounter = 1;
       
-      // DB에 없는 이름은 임시(가짜) ID를 부여해 화면에만 표시되게 합침
       STANDARD_CAST.forEach(std => {
         const exists = dbData.find(d => d.name === std.name);
         if (!exists) {
@@ -394,7 +461,6 @@ export default function App() {
         }
       });
       
-      // 남/녀, 고정 이름 순서대로 예쁘게 정렬
       mergedData.sort((a, b) => {
          const idxA = STANDARD_CAST.findIndex(s => s.name === a.name);
          const idxB = STANDARD_CAST.findIndex(s => s.name === b.name);
@@ -414,7 +480,6 @@ export default function App() {
       const cMap = {};
       const vMap = {};
       
-      // 💡 커플 투표와 빌런 투표 데이터를 분리하여 맵핑합니다.
       data.forEach(v => {
         if (v.couple_name.startsWith('villain_')) {
           vMap[v.couple_name.replace('villain_', '')] = v.vote_count;
@@ -442,8 +507,9 @@ export default function App() {
   const openProfile = (p) => { setSelectedProfile(p); setIsPanelOpen(true); document.body.style.overflow = 'hidden'; };
   const closeProfile = () => { setIsPanelOpen(false); document.body.style.overflow = 'unset'; };
 
+  // 💡 [변경됨] 비밀번호 hoonie2
   const handleAdminLogin = () => {
-    if (adminPassword === 'admin123') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
+    if (adminPassword === 'hoonie2') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
     else showAlert('비밀번호가 틀렸습니다.');
   };
 
@@ -477,7 +543,6 @@ export default function App() {
   };
 
   const handleDeleteCast = (id, name) => {
-    // 💡 화면에만 표시된 임시 데이터 삭제 방지
     if (typeof id === 'string') return showAlert('이건 아직 금고에 저장되지 않은 빈 슬롯입니다. 삭제할 내용이 없습니다!');
     
     showConfirm(`${name}님을 금고에서 완전히 삭제하시겠습니까?`, async () => {
@@ -503,7 +568,6 @@ export default function App() {
       if (c.gender === 'M') setHasVotedVillainM(true);
       if (c.gender === 'F') setHasVotedVillainF(true);
       showAlert(`${c.gender === 'M' ? '남성' : '여성'} 부문 빌런 투표 완료!`);
-      // 💡 빌런 투표 결과도 금고에 안전하게 저장합니다.
       await supabaseApi.saveVote(`villain_${c.id}`);
     });
   };
@@ -566,7 +630,6 @@ export default function App() {
     const total = Object.values(villainVotes).reduce((a, b) => a + b, 0) || 1;
     return Object.entries(villainVotes)
       .map(([id, v]) => {
-        // 💡 숫자형 ID와 문자열 ID를 안전하게 비교하도록 수정했습니다.
         const cast = castData.find(c => String(c.id) === String(id));
         return { id, name: cast?.name, img: cast?.img, votes: v, percentage: ((v/total)*100).toFixed(1) };
       })
@@ -583,23 +646,8 @@ export default function App() {
     (c.company && c.company.includes(searchTerm)) ||
     (c.education && c.education.includes(searchTerm)) ||
     (c.hobbies && c.hobbies.includes(searchTerm)) ||
-    (c.birth_year && c.birth_year.includes(searchTerm))
-  );
-
-  const CastCard = ({ cast, onClick }) => (
-    <div onClick={() => onClick(cast)} className="relative group cursor-pointer overflow-hidden rounded-2xl shadow-sm hover:shadow-md transition-all aspect-square w-full bg-gray-100 border border-gray-200">
-      {cast.img ? (
-        <img src={cast.img} alt={cast.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-      ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400">
-          <IconUser /> <span className="text-[10px] mt-1 font-bold opacity-50 uppercase tracking-widest text-center">Empty<br/>Slot</span>
-        </div>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-3 sm:p-4">
-        <span className="text-white font-black text-sm sm:text-base drop-shadow-md">{cast.name} {cast.age && <span className="text-[10px] sm:text-xs font-bold text-gray-300 ml-1">({cast.age}세)</span>}</span>
-        {cast.job && <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate">{cast.job}</span>}
-      </div>
-    </div>
+    (c.birth_year && c.birth_year.includes(searchTerm)) ||
+    (c.age && String(c.age).includes(searchTerm))
   );
 
   return (
@@ -614,7 +662,6 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 bg-pink-50 px-4 py-2 rounded-full border border-pink-100 shrink-0">
             <span className="text-sm font-black text-pink-600">기수 선택:</span>
-            {/* 💡 운영자일 경우 새로운 기수를 수동으로 추가할 수 있는 기능 탑재 */}
             <select value={season} onChange={(e) => {
                 if (e.target.value === 'new') {
                     const next = Math.max(...availableSeasons, 30) + 1;
@@ -649,7 +696,10 @@ export default function App() {
                   {['M', 'F'].map(g => (
                     <div key={g}>
                       <h3 className={`text-xs font-black mb-5 border-b-2 pb-2 ${g==='M'?'text-blue-500 border-blue-50':'text-pink-500 border-pink-50'}`}>{g==='M'?'SOLO 남성':'SOLO 여성'}</h3>
-                      <div className="flex flex-wrap gap-4">{castData.filter(c=>c.gender===g).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.75rem)] sm:w-[calc(20%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={setFirstCouplePick}/></div>))}</div>
+                      <div className="flex flex-wrap gap-4">
+                        {/* 💡 [변경됨] 투표창에서는 직업이 안 보이게끔 설정 (showJob 없음) */}
+                        {castData.filter(c=>c.gender===g).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.75rem)] sm:w-[calc(20%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={setFirstCouplePick}/></div>))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -662,7 +712,10 @@ export default function App() {
                   </div>
                   <div className="flex-1 w-full">
                     <p className="text-pink-500 font-black mb-8 text-lg underline decoration-pink-200 underline-offset-8">상대방을 선택하세요!</p>
-                    <div className="flex flex-wrap gap-5">{castData.filter(c=>c.gender!==firstCouplePick.gender).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.85rem)] sm:w-[calc(25%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={handleCoupleVote}/></div>))}</div>
+                    <div className="flex flex-wrap gap-5">
+                      {/* 💡 [변경됨] 투표창에서는 직업이 안 보이게끔 설정 */}
+                      {castData.filter(c=>c.gender!==firstCouplePick.gender).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.85rem)] sm:w-[calc(25%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={handleCoupleVote}/></div>))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -700,6 +753,7 @@ export default function App() {
                       const total = Object.values(villainVotes).reduce((a, b) => a + b, 0) || 1;
                       return (
                         <div key={c.id} className="w-[calc(33.33%-1rem)] sm:w-[calc(20%-1.2rem)] max-w-[120px] text-center">
+                          {/* 💡 [변경됨] 빌런 투표창에서도 직업이 안 보이게끔 설정 */}
                           <CastCard cast={c} onClick={() => handleVillainVote(c)} />
                           <div className="mt-4">
                             <p className="text-base font-black text-gray-800">{v}표</p>
@@ -777,7 +831,8 @@ export default function App() {
                   <div className="flex flex-wrap gap-8">
                     {genderCasts.map(c => (
                       <div key={c.id} onClick={() => openProfile(c)} className="w-[calc(50%-1rem)] sm:w-[calc(33.33%-1.4rem)] md:w-[calc(25%-1.5rem)] max-w-[220px]">
-                        <CastCard cast={c} onClick={() => {}} />
+                        {/* 💡 [변경됨] 출연진 프로필 탭에서는 showJob={true} 스위치를 켜서 직업을 표시합니다! */}
+                        <CastCard cast={c} onClick={() => {}} showJob={true} />
                       </div>
                     ))}
                   </div>
@@ -823,14 +878,12 @@ export default function App() {
           </div>
         )}
 
-        {/* 💡 수정된 ADMIN 탭 (자동 생성 버튼이 제거되고, 편집/삭제 버튼만 존재) */}
         {activeTab === 'admin' && isAdmin && (
           <div className="animate-fade-in space-y-10 bg-white p-6 sm:p-10 rounded-[40px] shadow-2xl border-4 border-gray-900">
             <div className="flex flex-col md:flex-row justify-between items-center border-b-4 border-gray-900 pb-8 gap-6">
               <h2 className="text-2xl sm:text-3xl font-black flex items-center gap-4"><IconSettings /> {season}기 출연진 관리</h2>
               <div className="flex gap-3 w-full md:w-auto">
-                {/* 💡 새로운 버튼: 오직 새 출연자를 수동 추가할 때만 씁니다 */}
-                <button onClick={()=>setCastEditModal({isOpen:true, data:{season: season, name:'', gender:'M', birth_year:'', company:'', position:'', education:'', location:'', hobbies:'', others:'', job:'', quote:'', img:''}})} className="flex-1 md:flex-none bg-pink-500 text-white px-6 py-4 rounded-3xl font-black shadow-xl hover:scale-105 transition-transform">
+                <button onClick={()=>setCastEditModal({isOpen:true, data:{season: season, name:'', gender:'M', birth_year:'', company:'', position:'', education:'', location:'', hobbies:'', others:'', job:'', quote:'', img:'', age:''}})} className="flex-1 md:flex-none bg-pink-500 text-white px-6 py-4 rounded-3xl font-black shadow-xl hover:scale-105 transition-transform">
                   + 새 출연자 추가
                 </button>
               </div>
@@ -844,8 +897,7 @@ export default function App() {
                     <div className="flex flex-col">
                       <p className="font-black text-xl text-gray-900">
                         {c.name} 
-                        <span className="text-xs text-pink-500 ml-2">{c.gender === 'M' ? '남성' : '여성'} {c.age && `/ ${c.age}세`}</span>
-                        {/* 임시 슬롯인지 알려주는 작은 뱃지 */}
+                        <span className="text-xs text-pink-500 ml-2">{c.gender === 'M' ? '남성' : '여성'} {c.age && `/ ${c.age}`}</span>
                         {typeof c.id === 'string' && <span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-1 rounded ml-2 font-black">미작성 빈칸</span>}
                       </p>
                       <p className="text-xs text-gray-400 font-bold mt-1 line-clamp-1">{c.job} {c.company && `| ${c.company}`}</p>
@@ -896,7 +948,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 운영자: 출연진 편집/추가 팝업 */}
+      {/* 💡 [변경됨] 운영자: 출연진 편집/추가 팝업 (나이 직접 텍스트 입력칸) */}
       {castEditModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setCastEditModal({isOpen:false})} />
@@ -930,7 +982,8 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-[32px] border-2 border-gray-100">
-                <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">나이</label><input type="text" value={castEditModal.data?.age || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, age:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 35" /></div>
+                {/* 💡 [변경됨] 나이를 자동 계산하지 않고, 자유롭게 글자를 적을 수 있게 텍스트 입력창으로 유지함 */}
+                <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">나이</label><input type="text" value={castEditModal.data?.age || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, age:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 33세, 비공개" /></div>
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">출생연도</label><input type="text" value={castEditModal.data?.birth_year || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, birth_year:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 1990년생" /></div>
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">거주지</label><input type="text" value={castEditModal.data?.location || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, location:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 서울 송파구" /></div>
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">직업</label><input type="text" value={castEditModal.data?.job || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, job:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 변호사" /></div>
@@ -969,14 +1022,14 @@ export default function App() {
                 <h2 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tighter break-keep">
                   {selectedProfile.name}
                 </h2>
-                {selectedProfile.age && <p className="text-sm sm:text-base font-bold text-gray-400 mt-1">{selectedProfile.age}세</p>}
+                {selectedProfile.age && <p className="text-sm sm:text-base font-bold text-gray-400 mt-1">{selectedProfile.age}</p>}
                 <p className="text-pink-500 font-black text-xl sm:text-2xl mt-2">{selectedProfile.job || '직업 미상'}</p>
               </div>
             </div>
             
             <div className="mt-6 sm:mt-8 pb-4">
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div className="bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">나이</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.age ? `${selectedProfile.age}세` : '-'}</p></div>
+                <div className="bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">나이</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.age || '-'}</p></div>
                 <div className="bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">출생연도</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.birth_year || '-'}</p></div>
                 <div className="col-span-2 bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">거주지</span><p className="font-black text-gray-800 text-sm sm:text-base line-clamp-2">{selectedProfile.location || '-'}</p></div>
                 <div className="col-span-2 bg-gray-50 p-4 sm:p-5 rounded-[24px] border border-gray-100"><span className="text-[10px] text-gray-400 font-black uppercase tracking-widest block mb-1">소속 / 직책</span><p className="font-black text-gray-800 text-sm sm:text-base">{selectedProfile.company || '-'}{selectedProfile.position && ` / ${selectedProfile.position}`}</p></div>
@@ -998,11 +1051,11 @@ export default function App() {
         </div>
       )}
 
-      {/* 💡 게시글 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
+      {/* 게시글 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closePostModal} />
-          <div className="relative w-full max-w-2xl bg-white rounded-[40px] sm:rounded-[56px] shadow-2xl p-6 sm:p-10 flex flex-col max-h-[90vh] animate-fade-in">
+          <div className="relative w-full max-w-2xl bg-white rounded-[40px] sm:rounded-[56px] shadow-2xl p-6 sm:p-10 flex flex-col max-h-[90vh] overflow-y-auto animate-fade-in">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4 sm:pb-6">
               <span className="text-xs font-black text-gray-300 tracking-widest uppercase">BOARD_READING</span>
               <div className="flex items-center gap-2 sm:gap-4">
