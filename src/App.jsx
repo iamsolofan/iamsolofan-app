@@ -340,7 +340,7 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
   );
 }
 
-// 💡 [변경됨] 사진 컴포넌트 (showJob 스위치 추가!)
+// 💡 [완벽 제어] 사진 컴포넌트: showJob 스위치로 직업 표시를 철저하게 분리
 const CastCard = ({ cast, onClick, showJob = false }) => (
   <div onClick={() => onClick(cast)} className="relative group cursor-pointer overflow-hidden rounded-2xl shadow-sm hover:shadow-md transition-all aspect-square w-full bg-gray-100 border border-gray-200 flex flex-col">
     {cast.img ? (
@@ -350,17 +350,17 @@ const CastCard = ({ cast, onClick, showJob = false }) => (
         <IconUser /> <span className="text-[10px] mt-1 font-bold opacity-50 uppercase tracking-widest text-center">Empty<br/>Slot</span>
       </div>
     )}
-    {/* 항상 이름만 보여주는 그라데이션 영역 */}
-    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-3 sm:p-4">
-      <span className="text-white font-black text-sm sm:text-base drop-shadow-md">{cast.name} {cast.age && <span className="text-[10px] sm:text-xs font-bold text-gray-300 ml-1">({cast.age})</span>}</span>
-    </div>
     
-    {/* 💡 showJob 스위치가 켜졌을 때만 (출연진 프로필 탭에서만) 직업을 표시합니다! */}
-    {showJob && cast.job && (
-      <div className="absolute top-0 left-0 w-full bg-black/60 backdrop-blur-sm p-1.5 text-center transition-opacity opacity-0 group-hover:opacity-100">
-        <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate block">{cast.job}</span>
-      </div>
-    )}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-3 sm:p-4">
+      <span className="text-white font-black text-sm sm:text-base drop-shadow-md">
+        {/* 💡 나이(cast.age) 앞에도 showJob 조건을 걸어 투표 탭에서는 숨김 처리! */}
+        {cast.name} {showJob && cast.age && <span className="text-[10px] sm:text-xs font-bold text-gray-300 ml-1">({cast.age})</span>}
+      </span>
+      {/* 💡 showJob이 true일 때(출연진 탭)만 직업이 표시됨! 투표 탭에서는 절대 안 나옴 */}
+      {showJob && cast.job && (
+        <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate mt-0.5">{cast.job}</span>
+      )}
+    </div>
   </div>
 );
 
