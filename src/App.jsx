@@ -90,7 +90,6 @@ const supabaseApi = {
       localStorage.setItem('iamsolo_comments', JSON.stringify([newComment, ...comments])); return [newComment];
     }
   },
-  // 💡 [신규 추가됨] 댓글 수정 기능
   async updateComment(id, text) {
     try {
       if (this._useLocal) throw new Error('Local Mode');
@@ -170,7 +169,7 @@ const supabaseApi = {
       season: season,
       name: cast.name || '이름없음',
       gender: cast.gender === 'M' ? '남' : '여',
-      age: cast.age || '', // 💡 텍스트 입력 나이 그대로 저장됨
+      age: cast.age || '', 
       birth_year: cast.birth_year || '',
       job: cast.job || '',
       company: cast.company || '',
@@ -258,8 +257,8 @@ const STANDARD_CAST = [
 function CommentSection({ postId, isAdmin, showConfirm }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [editingId, setEditingId] = useState(null); // 💡 수정 모드 활성화를 위한 상태
-  const [editText, setEditText] = useState('');     // 💡 수정 중인 텍스트
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
 
   useEffect(() => { if (postId) fetchComments(); }, [postId]);
 
@@ -280,7 +279,6 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
     } catch (error) { alert('댓글 저장에 실패했습니다.'); }
   };
 
-  // 💡 [추가] 댓글 수정 완료 함수
   const handleSaveEdit = async (id) => {
     if (editText.trim() === '') return;
     try {
@@ -310,18 +308,15 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
           return (
             <div key={comment.id} className="p-5 bg-gray-50 rounded-2xl shadow-sm flex flex-col group transition-all">
               {editingId === comment.id ? (
-                // 💡 수정 모드일 때 보여지는 화면
                 <div className="flex gap-2 w-full items-center">
                   <input type="text" value={editText} onChange={e=>setEditText(e.target.value)} className="flex-1 p-3 rounded-xl border border-gray-200 font-medium text-sm focus:ring-2 focus:ring-pink-300 bg-white outline-none" autoFocus />
                   <button onClick={()=>handleSaveEdit(comment.id)} className="text-xs text-blue-500 font-black px-3 py-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">완료</button>
                   <button onClick={()=>setEditingId(null)} className="text-xs text-gray-400 font-black px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors whitespace-nowrap">취소</button>
                 </div>
               ) : (
-                // 기본 보기 화면
                 <div className="flex justify-between items-start">
                   <p className="text-gray-700 text-sm font-medium leading-relaxed pr-4 flex-1 whitespace-pre-wrap">{comment.text}</p>
                   <div className="flex gap-3 shrink-0 mt-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* 💡 내가 작성한 글일 때만 수정 버튼 노출! */}
                     {isMine && (
                       <button onClick={() => { setEditingId(comment.id); setEditText(comment.text); }} className="text-xs font-black text-gray-400 hover:text-blue-500 transition-colors whitespace-nowrap">수정</button>
                     )}
@@ -340,7 +335,7 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
   );
 }
 
-// 💡 [완벽 제어] 사진 컴포넌트: showJob 스위치로 직업 표시를 철저하게 분리
+// 💡 [완벽 제어] 사진 컴포넌트: 이름 텍스트 위치를 완전히 바닥(bottom-0)으로 고정!
 const CastCard = ({ cast, onClick, showJob = false }) => (
   <div onClick={() => onClick(cast)} className="relative group cursor-pointer overflow-hidden rounded-2xl shadow-sm hover:shadow-md transition-all aspect-square w-full bg-gray-100 border border-gray-200 flex flex-col">
     {cast.img ? (
@@ -351,14 +346,14 @@ const CastCard = ({ cast, onClick, showJob = false }) => (
       </div>
     )}
     
-    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent flex flex-col justify-end p-3 sm:p-4">
-      <span className="text-white font-black text-sm sm:text-base drop-shadow-md">
-        {/* 💡 나이(cast.age) 앞에도 showJob 조건을 걸어 투표 탭에서는 숨김 처리! */}
+    {/* 💡 텍스트가 위로 뜨지 않도록 absolute inset-x-0 bottom-0 을 사용해 제일 아래 칸에 고정시켰습니다. */}
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent flex flex-col items-center justify-end pt-12 pb-2 sm:pb-2.5 px-2 pointer-events-none">
+      <span className="text-white font-black text-sm sm:text-base drop-shadow-md text-center">
         {cast.name} {showJob && cast.age && <span className="text-[10px] sm:text-xs font-bold text-gray-300 ml-1">({cast.age})</span>}
       </span>
-      {/* 💡 showJob이 true일 때(출연진 탭)만 직업이 표시됨! 투표 탭에서는 절대 안 나옴 */}
+      {/* showJob이 true일 때(출연진 탭)만 직업이 표시됨 */}
       {showJob && cast.job && (
-        <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate mt-0.5">{cast.job}</span>
+        <span className="text-pink-300 font-bold text-[10px] sm:text-xs truncate mt-0.5 text-center">{cast.job}</span>
       )}
     </div>
   </div>
@@ -507,7 +502,6 @@ export default function App() {
   const openProfile = (p) => { setSelectedProfile(p); setIsPanelOpen(true); document.body.style.overflow = 'hidden'; };
   const closeProfile = () => { setIsPanelOpen(false); document.body.style.overflow = 'unset'; };
 
-  // 💡 [변경됨] 비밀번호 hoonie2
   const handleAdminLogin = () => {
     if (adminPassword === 'hoonie2') { setIsAdmin(true); setShowAdminLogin(false); setAdminPassword(''); showAlert('운영자 인증 성공! ⚙️운영자 탭이 활성화되었습니다.'); }
     else showAlert('비밀번호가 틀렸습니다.');
@@ -697,7 +691,6 @@ export default function App() {
                     <div key={g}>
                       <h3 className={`text-xs font-black mb-5 border-b-2 pb-2 ${g==='M'?'text-blue-500 border-blue-50':'text-pink-500 border-pink-50'}`}>{g==='M'?'SOLO 남성':'SOLO 여성'}</h3>
                       <div className="flex flex-wrap gap-4">
-                        {/* 💡 [변경됨] 투표창에서는 직업이 안 보이게끔 설정 (showJob 없음) */}
                         {castData.filter(c=>c.gender===g).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.75rem)] sm:w-[calc(20%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={setFirstCouplePick}/></div>))}
                       </div>
                     </div>
@@ -713,7 +706,6 @@ export default function App() {
                   <div className="flex-1 w-full">
                     <p className="text-pink-500 font-black mb-8 text-lg underline decoration-pink-200 underline-offset-8">상대방을 선택하세요!</p>
                     <div className="flex flex-wrap gap-5">
-                      {/* 💡 [변경됨] 투표창에서는 직업이 안 보이게끔 설정 */}
                       {castData.filter(c=>c.gender!==firstCouplePick.gender).map(c=>(<div key={c.id} className="w-[calc(33.33%-0.85rem)] sm:w-[calc(25%-1rem)] max-w-[120px]"><CastCard cast={c} onClick={handleCoupleVote}/></div>))}
                     </div>
                   </div>
@@ -753,7 +745,6 @@ export default function App() {
                       const total = Object.values(villainVotes).reduce((a, b) => a + b, 0) || 1;
                       return (
                         <div key={c.id} className="w-[calc(33.33%-1rem)] sm:w-[calc(20%-1.2rem)] max-w-[120px] text-center">
-                          {/* 💡 [변경됨] 빌런 투표창에서도 직업이 안 보이게끔 설정 */}
                           <CastCard cast={c} onClick={() => handleVillainVote(c)} />
                           <div className="mt-4">
                             <p className="text-base font-black text-gray-800">{v}표</p>
@@ -831,7 +822,7 @@ export default function App() {
                   <div className="flex flex-wrap gap-8">
                     {genderCasts.map(c => (
                       <div key={c.id} onClick={() => openProfile(c)} className="w-[calc(50%-1rem)] sm:w-[calc(33.33%-1.4rem)] md:w-[calc(25%-1.5rem)] max-w-[220px]">
-                        {/* 💡 [변경됨] 출연진 프로필 탭에서는 showJob={true} 스위치를 켜서 직업을 표시합니다! */}
+                        {/* 💡 출연진 프로필 탭에서는 showJob={true} 스위치를 켜서 직업/나이를 모두 표시합니다! */}
                         <CastCard cast={c} onClick={() => {}} showJob={true} />
                       </div>
                     ))}
@@ -948,7 +939,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 💡 [변경됨] 운영자: 출연진 편집/추가 팝업 (나이 직접 텍스트 입력칸) */}
+      {/* 운영자: 출연진 편집/추가 팝업 */}
       {castEditModal.isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={()=>setCastEditModal({isOpen:false})} />
@@ -982,7 +973,6 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-6 rounded-[32px] border-2 border-gray-100">
-                {/* 💡 [변경됨] 나이를 자동 계산하지 않고, 자유롭게 글자를 적을 수 있게 텍스트 입력창으로 유지함 */}
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">나이</label><input type="text" value={castEditModal.data?.age || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, age:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 33세, 비공개" /></div>
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">출생연도</label><input type="text" value={castEditModal.data?.birth_year || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, birth_year:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 1990년생" /></div>
                 <div><label className="text-[10px] font-black text-gray-400 ml-2 uppercase">거주지</label><input type="text" value={castEditModal.data?.location || ''} onChange={e=>setCastEditModal({...castEditModal, data:{...castEditModal.data, location:e.target.value}})} className="w-full bg-white p-3 mt-1 rounded-xl text-sm font-bold outline-none border" placeholder="예: 서울 송파구" /></div>
@@ -1005,7 +995,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 프로필 상세보기 패널 (중앙 팝업 모달) */}
+      {/* 프로필 상세보기 패널 */}
       {selectedProfile && isPanelOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeProfile} />
@@ -1051,7 +1041,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 게시글 상세보기 패널 (중앙 팝업 모달로 변경됨) */}
+      {/* 게시글 상세보기 패널 */}
       {selectedPost && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closePostModal} />
