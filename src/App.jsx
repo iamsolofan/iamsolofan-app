@@ -256,6 +256,7 @@ const STANDARD_CAST = [
 // === 2. 댓글창 컴포넌트 ===
 function CommentSection({ postId, isAdmin, showConfirm }) {
   const [comments, setComments] = useState([]);
+  const [newAuthor, setNewAuthor] = useState(''); // 💡 추가: 작성자 닉네임 상태
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
@@ -273,9 +274,11 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
     e.preventDefault();
     if (newComment.trim() === '') return;
     try {
-      const res = await supabaseApi.insertComment({ post_id: postId, text: newComment, author: '익명' });
+      const authorName = newAuthor.trim() === '' ? '익명' : newAuthor.trim(); // 닉네임 미입력시 '익명'
+      const res = await supabaseApi.insertComment({ post_id: postId, text: newComment, author: authorName });
       if (res && res.length > 0) addMyItem('my_comments', res[0].id);
-      setNewComment(''); fetchComments();   
+      setNewComment(''); 
+      fetchComments();   
     } catch (error) { alert('댓글 저장에 실패했습니다.'); }
   };
 
@@ -298,9 +301,13 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
   return (
     <div className="mt-8 pt-8 border-t border-gray-100">
       <h3 className="text-lg font-bold mb-4 text-gray-800">댓글 {comments.length}개</h3>
-      <form onSubmit={handleAddComment} className="flex gap-2 mb-6">
-        <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="따뜻한 댓글을 남겨주세요!" className="flex-1 p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm font-medium" />
-        <button type="submit" className="bg-gray-900 text-white px-6 py-4 rounded-2xl hover:bg-black font-black text-sm shadow-sm transition-colors">등록</button>
+      {/* 💡 수정: 작성자와 내용을 함께 입력받는 폼 */}
+      <form onSubmit={handleAddComment} className="flex flex-col sm:flex-row gap-2 mb-6">
+        <input type="text" value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} placeholder="닉네임 (선택)" className="w-full sm:w-32 p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm font-medium shrink-0" />
+        <div className="flex flex-1 gap-2">
+          <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="따뜻한 댓글을 남겨주세요!" className="flex-1 p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm font-medium" />
+          <button type="submit" className="bg-gray-900 text-white px-6 py-4 rounded-2xl hover:bg-black font-black text-sm shadow-sm transition-colors shrink-0">등록</button>
+        </div>
       </form>
       <div className="space-y-3">
         {comments.map((comment) => {
@@ -315,7 +322,11 @@ function CommentSection({ postId, isAdmin, showConfirm }) {
                 </div>
               ) : (
                 <div className="flex justify-between items-start">
-                  <p className="text-gray-700 text-sm font-medium leading-relaxed pr-4 flex-1 whitespace-pre-wrap">{comment.text}</p>
+                  <div className="flex-1 pr-4">
+                    {/* 💡 수정: 댓글 작성자 표시 영역 추가 */}
+                    <span className="text-[10px] font-black text-gray-400 block mb-1">{comment.author || '익명'}</span>
+                    <p className="text-gray-700 text-sm font-medium leading-relaxed whitespace-pre-wrap">{comment.text}</p>
+                  </div>
                   <div className="flex gap-3 shrink-0 mt-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     {isMine && (
                       <button onClick={() => { setEditingId(comment.id); setEditText(comment.text); }} className="text-xs font-black text-gray-400 hover:text-blue-500 transition-colors whitespace-nowrap">수정</button>
@@ -822,7 +833,6 @@ export default function App() {
                   <div className="flex flex-wrap gap-8">
                     {genderCasts.map(c => (
                       <div key={c.id} onClick={() => openProfile(c)} className="w-[calc(50%-1rem)] sm:w-[calc(33.33%-1.4rem)] md:w-[calc(25%-1.5rem)] max-w-[220px]">
-                        {/* 💡 출연진 프로필 탭에서는 showJob={true} 스위치를 켜서 직업/나이를 모두 표시합니다! */}
                         <CastCard cast={c} onClick={() => {}} showJob={true} />
                       </div>
                     ))}
